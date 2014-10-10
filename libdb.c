@@ -138,7 +138,7 @@ void write_block_to_file(const struct DB *db, void *block, int block_id)
 	return;
 }
 
-void read_block_from_file(struct DB *db, void *block, int block_id)
+void read_block_from_file(const struct DB *db, void *block, int block_id)
 {
 	long int offset = block_offset_in_file(db, block_id);
 	fseek(db->db_info.fp, offset, SEEK_SET);
@@ -322,7 +322,6 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 	
 	int i;
 	int res;
-	int cmp;
 	void *child_node;
 	
 	key_number = *((int *) node);
@@ -338,12 +337,12 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 		value_i_ptr += key_lens[i];
 	}
 	
-	/* algorithm of b-tree-search from Corman*/
+	/* algorithm of b-tree-search from Cormen*/
 	i = 0;
 	while( i < key_number 
 			&& cmpkeys(key->data, key_i_ptr, key->size, key_lens[i]) > 0){
 		key_i_ptr += key_lens[i];
-		value_i_ptr += value_i_ptr[i];
+		value_i_ptr += value_lens[i];
 		i++;
 	}
 	
@@ -356,7 +355,7 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 		res = -1;
 	} else {
 		child_node = malloc(db->db_info.chunk_size);
-		read_block_from_file(db, child_node, block_id[i]);
+		read_block_from_file(db, child_node, block_ids[i]);
 		res = b_tree_search(db, child_node, key, data);
 		free(child_node);
 	}
