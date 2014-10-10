@@ -28,7 +28,6 @@ typedef struct {
 	int root_id;
 	int bitmap_size; /*in bytes*/
 	int bitmap_start_index;
-	int t;
 } db_header;
 
 typedef struct {
@@ -44,7 +43,6 @@ typedef struct {
 	size_t bitmap_size;
 	/*first iterating byte in bitmap*/
 	int bitmap_start_index;
-	int t;
 } db_info_in_DB;
 
 
