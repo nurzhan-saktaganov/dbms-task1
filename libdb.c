@@ -357,9 +357,7 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 	} else {
 		child_node = malloc(db->db_info.chunk_size);
 		read_block_from_file(db, child_node, block_ids[i]);
-		printf("level in\n");
 		res = b_tree_search(db, child_node, key, data);
-		printf("level out\n");
 		free(child_node);
 	}
 	
@@ -491,7 +489,7 @@ int get_child_block_id_to_insert(const struct DB *db, void *node, struct DBT *ke
 	key_count = *(int *)(node);
 	keys_size = (int *)(node + sizeof(int) + sizeof(char));
 	blocks_id = keys_size + 2 * key_count;
-	keys = ((void *)blocks_id) + key_count + 1;
+	keys = (void *)(blocks_id + key_count + 1);
 	
 	i = 0;
 	while( i < key_count && cmpkeys(key->data, keys, key->size, keys_size[i]) > 0)
@@ -499,7 +497,7 @@ int get_child_block_id_to_insert(const struct DB *db, void *node, struct DBT *ke
 		keys += keys_size[i];
 		i++;
 	}
-
+	
 	child_block_id = blocks_id[i];
 	
 	return child_block_id;
@@ -513,10 +511,8 @@ int get_split_point(const struct DB *db, void *node)
 	int *values_size;
 	int left_size;
 	int i;
-	
-	printf("GET SPLIT POINT\n");
-	
-	key_count = *((int *)node);
+		
+	key_count = *(int *)(node);
 	keys_size = (int *)(node + sizeof(int) + sizeof(char));
 	values_size = keys_size + key_count;
 	
@@ -593,36 +589,7 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 	void *keys_from;
 	void *values_from;
 	
-	printf("SPLIT_CHILD");
-	
-	{
-		t_parent_size = 2 * db->db_info.chunk_size;
-		t_parent = malloc(t_parent_size);
-		parent_key_count = (int *) parent;
-		t_parent_key_count = (int *)t_parent;
-		*t_parent_key_count = *parent_key_count + 1;
-		*(char *)(t_parent + sizeof(int)) = 0;//*(char *)(parent + sizeof(int)) ;
-		parent_keys_size = (int *)(parent + sizeof(int) + sizeof(char));
-		t_parent_keys_size = (int *)(t_parent + sizeof(int) + sizeof(char));
-		parent_values_size = parent_keys_size + *parent_key_count;
-		t_parent_values_size = t_parent_keys_size + *t_parent_key_count;
-		parent_blocks_id = parent_values_size + *parent_key_count;
-		t_parent_blocks_id = t_parent_values_size + *t_parent_key_count;
-		parent_keys = (void *)(parent_blocks_id + *parent_key_count + 1);
-		t_parent_keys = (void *)(t_parent_blocks_id + *t_parent_key_count + 1);
-	
-		parent_values = parent_keys;
-		t_parent_values = t_parent_keys;
-	
-		for(i = 0; i < *parent_key_count; i++) 
-		{
-			parent_values += parent_keys_size[i];
-			t_parent_values += parent_keys_size[i];
-		}
-	}
-	
-	
-	/* split child into child1 and child2 */
+	/* split child into child1 and child2*/
 	{
 		split_point = get_split_point(db, child);
 		child1 = malloc(db->db_info.chunk_size);
@@ -633,23 +600,28 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 		child2_key_count = (int *) child2;
 		
 		*child1_key_count = split_point;
-		*child2_key_count = *child_key_count - 1 - split_point;
+		*child2_key_count = *child_key_count - split_point - 1;
 		
+		/* sign of leaf */
 		*(char *)(child1 + sizeof(int)) = *(char *)(child + sizeof(int));
 		*(char *)(child2 + sizeof(int)) = *(char *)(child + sizeof(int));
+		/* keys size */
 		child_keys_size = (int *)(child + sizeof(int) + sizeof(char));
 		child1_keys_size = (int *)(child1 + sizeof(int) + sizeof(char));
 		child2_keys_size = (int *)(child2 + sizeof(int) + sizeof(char));
+		/* values size */
 		child_values_size = child_keys_size + *child_key_count;
 		child1_values_size = child1_keys_size + *child1_key_count;
-		child2_values_size = child1_keys_size + *child2_key_count;
+		child2_values_size = child2_keys_size + *child2_key_count;
+		/* blocks id */
 		child_blocks_id = child_values_size + *child_key_count;
 		child1_blocks_id = child1_values_size + *child1_key_count;
 		child2_blocks_id = child2_values_size + *child2_key_count;
-		/* keys and values */
+		/* keys */
 		child_keys = (void *)(child_blocks_id + *child_key_count + 1);
 		child1_keys = (void *)(child1_blocks_id + *child1_key_count + 1);
 		child2_keys = (void *)(child2_blocks_id + *child2_key_count + 1);
+		/* values */
 		child_values = child_keys;
 		child1_values = child1_keys;
 		child2_values = child2_keys;
@@ -660,11 +632,12 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 			child1_values_size[i] = child_values_size[i];
 			child1_blocks_id[i] = child_blocks_id[i];
 			child_values += child_keys_size[i];
-			child1_values += child1_keys_size[i];
+			child1_values += child_keys_size[i];
 		}
-	
-		child1_blocks_id[split_point] = child_blocks_id[split_point];
-		child_values += child_keys_size[split_point];
+		
+		child_blocks_id[split_point] = child_blocks_id[split_point];
+		child_values += child_keys_size[i];
+		//child_values += child_keys_size[split_child];
 		
 		for(i = split_point + 1; i < *child_key_count; i++)
 		{
@@ -677,21 +650,22 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 		
 		child2_blocks_id[*child_key_count - split_point - 1] = child_blocks_id[*child_key_count];
 		
+		/* copy keys and values */
 		for(i = 0; i < split_point; i++)
 		{
 			memcpy(child1_keys, child_keys, child_keys_size[i]);
 			memcpy(child1_values, child_values, child_values_size[i]);
 			child_keys += child_keys_size[i];
-			child1_keys_size += child_keys_size[i];
+			child1_keys += child_keys_size[i];
 			child_values += child_values_size[i];
 			child1_values += child_values_size[i];
 		}
-		
+	
 		keys_from = child_keys;
 		values_from = child_values;
 		
 		child_keys += child_keys_size[split_point];
-		child_values += child_keys_size[split_point];
+		child_values += child_values_size[split_point];
 		
 		for(i = split_point + 1; i < *child_key_count; i++)
 		{
@@ -702,18 +676,48 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 			child_values += child_values_size[i];
 			child2_values += child_values_size[i];
 		}
-	
+		
+		write_block_to_file(db, child1, child_block_id);
 		child2_block_id = block_allocate(db);
-		write_block_to_file(db, child2, child_block_id);
-		write_block_to_file(db, child1, child2_block_id);
+		write_block_to_file(db, child2, child2_block_id);
 		free(child1);
-		free(child2);	
+		free(child2);
 	}
+	
 	
 	/* modify parent */
 	{
+		t_parent_size = 2 * db->db_info.chunk_size;
+		t_parent = malloc(t_parent_size);	
+		parent_key_count = (int *) parent;
+		t_parent_key_count = (int *) t_parent;
+		*t_parent_key_count = *parent_key_count + 1;
+		*(char *)(t_parent + sizeof(int)) = *(char *)(parent + sizeof(int));
+		/* keys size */
+		parent_keys_size = (int *)(parent + sizeof(int) + sizeof(char));
+		t_parent_keys_size = (int *)(t_parent + sizeof(int) + sizeof(char));
+		/* values size */
+		parent_values_size = parent_keys_size + *parent_key_count;
+		t_parent_values_size = t_parent_keys_size + *t_parent_key_count;
+		/* blocks id */
+		parent_blocks_id = parent_values_size + *parent_key_count;
+		t_parent_blocks_id = t_parent_values_size + *t_parent_key_count;
+		/* keys */
+		parent_keys = (void *)(parent_blocks_id + *parent_key_count + 1);
+		t_parent_keys = (void *)(t_parent_blocks_id + *t_parent_key_count + 1);
+		/* values */
+		parent_values = parent_keys;
+		t_parent_values = t_parent_keys;
+	
+		for(i = 0; i < *parent_key_count; i++) 
+		{
+			parent_values += parent_keys_size[i];
+			t_parent_values += parent_keys_size[i];
+		}
+	
 		t_parent_values += child_keys_size[split_point];
-		//TODO
+		
+		/* */
 		i = 0;
 		while( i < *parent_key_count
 					&& cmpkeys(keys_from, parent_keys, child_keys_size[split_point], parent_keys_size[i]) > 0)
@@ -735,7 +739,7 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 		t_parent_keys_size[i] = child_keys_size[split_point];
 		t_parent_values_size[i] = child_values_size[split_point];
 		t_parent_blocks_id[i] = child_block_id;
-		printf("child_block_id = %d, parent_blocks_id[i] = %d\n", child_block_id, parent_blocks_id[i]);
+		printf("child_block_id = %d, parent_blocks_id[i] = %d, should be equal\n", child_block_id, parent_blocks_id[i]);
 		t_parent_blocks_id[i + 1] = child2_block_id;
 		t_parent_keys += child_keys_size[split_point];
 		t_parent_values += child_values_size[split_point];
@@ -755,11 +759,9 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 		}
 
 		memcpy(parent, t_parent, t_parent_size);
+		free(t_parent);
 	}
 	
-/* */
-	
-	free(t_parent);
 	return;
 }
 
@@ -768,10 +770,7 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 
 int b_tree_insert(const struct DB *db, void *node, struct DBT *key,
 									struct DBT *data, void *modified_parent, int block_id)
-{
-	/* TODO realize b_tree_insert */
-	
-	
+{	
 	char is_leaf;
 	void *modified_me;
 	void *child_block;
@@ -808,9 +807,7 @@ int b_tree_insert(const struct DB *db, void *node, struct DBT *key,
 		free(modified_me);
 		return 0;
 	}
-	
-	//TODO split and etc.
-	printf("block_size = %d\n", get_block_size(modified_me));
+
 	split_child(db, modified_parent, modified_me, block_id);
 	
 	free(modified_me);
@@ -853,7 +850,7 @@ int put(const struct DB *db_in, struct DBT *key, struct DBT *data)
 }
  
 int main(int argc, char **argv) {
-#define N 199
+#define N 15000
 #define Kb *1000
 #define Mb *1000000
 
@@ -885,7 +882,7 @@ int main(int argc, char **argv) {
 		put(db, &key, &data);
 	}
 	j = 0;
-	for(i = 0; i < N; i++) {
+	for(i = -10; i < N; i++) {
 		*(int *)(key.data) = i;
 		if (!get(db, &key, &data))
 		{
@@ -893,44 +890,14 @@ int main(int argc, char **argv) {
 			if(*(int *)(key.data)!= *(int *)(data.data))
 				printf("alert!!!\n");
 			j++;
-		}
+		} else
+			printf("not found\n");
 	}
 	
 	printf("j = %d\n", j);
 	
-	/*
-	while(!clos)
-	{
-		printf("choose:\n 1 - insert;\n 2 - search.\n");
-		scanf("%d", &choose);
-		if(choose == 1)
-		{
-			printf("key:");
-			scanf("%d", (int *)key.data);
-			printf("value:");
-			scanf("%d", (int *)data.data);
-			put(db, &key, &data);
-		} 
-		else if (choose == 2)
-		{
-			printf("key:");
-			scanf("%d", (int *)key.data);
-			if (!get(db, &key, &data))
-				printf("key = %d value = %d\n", *(int *)(key.data), *(int *)(data.data));
-			else 
-				printf("not found\n");
-		}
-		else
-		{
-			;
-		}
-			
-		printf("close?1/0:");
-		scanf("%d", &clos);
-
-	}*/
-	
 	close(db);
+	unlink("testdb.db");
 	 
 	return 0;
 }
