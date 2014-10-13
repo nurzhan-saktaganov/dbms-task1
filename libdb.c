@@ -341,6 +341,8 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 	i = 0;
 	while( i < key_number 
 			&& cmpkeys(key->data, key_i_ptr, key->size, key_lens[i]) > 0){
+		printf("key_i_ptr = %d\n",*(int *)(key_i_ptr));
+		printf("key_len = %d\n", key_lens[i]);
 		key_i_ptr += key_lens[i];
 		value_i_ptr += value_lens[i];
 		i++;
@@ -349,6 +351,7 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 	if (i < key_number 
 			&& cmpkeys(key->data, key_i_ptr, key->size, key_lens[i]) == 0){
 		data->data = malloc(value_lens[i]);
+		data->size = value_lens[i];
 		memcpy(data->data, value_i_ptr, value_lens[i]);
 		res = 0;
 	} else if (is_leaf) {
@@ -412,6 +415,8 @@ void add_to_leaf(const struct DB *db, void *leaf, struct DBT *key,
 	
 	int i;
 	
+	printf("ADD TO LEAF\n");
+	
 	leaf_key_count = (int *)leaf;
 	m_leaf_key_count = (int *)m_leaf;
 	/* key number and sign of leaf */
@@ -455,7 +460,9 @@ void add_to_leaf(const struct DB *db, void *leaf, struct DBT *key,
 	
 	memcpy(m_leaf_keys, key->data, key->size);
 	memcpy(m_leaf_values, data->data, data->size);
+	m_leaf_keys_size[i] = key->size;
 	m_leaf_keys += key->size;
+	m_leaf_values_size[i] = data->size;
 	m_leaf_values += data->size;
 	
 	while(i < *leaf_key_count)
@@ -508,6 +515,8 @@ int get_split_point(const struct DB *db, void *node)
 	int *values_size;
 	int left_size;
 	int i;
+	
+	printf("GET SPLIT POINT\n");
 	
 	key_count = *((int *)node);
 	keys_size = (int *)(node + sizeof(int) + sizeof(char));
@@ -586,6 +595,7 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 	void *keys_from;
 	void *values_from;
 	
+	printf("SPLIT_CHILD");
 	
 	{
 		t_parent_size = 2 * db->db_info.chunk_size;
@@ -763,12 +773,15 @@ int b_tree_insert(const struct DB *db, void *node, struct DBT *key,
 {
 	/* TODO realize b_tree_insert */
 	
+	
 	char is_leaf;
 	void *modified_me;
 	void *child_block;
 	int child_block_id;
 	int i_am_modified = 0;
 	int modified_me_size;	
+	
+	printf("B_TREE_INSERT\n");
 	
 	modified_me_size = 2 * db->db_info.chunk_size;
 	
@@ -817,6 +830,7 @@ int put(const struct DB *db_in, struct DBT *key, struct DBT *data)
 	int *child_id;
 	int new_block_id;
 	struct DB *db = db_in;
+	printf("PUT\n");
 	
 	pseudo_root_size = 2 * db->db_info.chunk_size;
 	pseudo_root = malloc(pseudo_root_size);
@@ -849,42 +863,58 @@ int main(int argc, char **argv) {
 
 	struct DBC dbc;
 	struct DB *db;
-	int i;//, j;
-	int id[N];
+	//int i;
+	struct DBT key;
+	struct DBT data;
+	int clos;
+	int choose;
+
+	key.data = malloc(sizeof(int));
+	key.size = sizeof(int);
+	data.data = malloc(sizeof(int));
+	data.size = sizeof(int);
+	
 	dbc.mem_size = 0;
 	dbc.db_size = 1 Mb;
 	dbc.chunk_size = 4 Kb;
-	
-	for (i = 0; i < N; i++) {
-		if (!(db = dbcreate("testdb.db", dbc))) {
-			db = dbopen("testdb.db");
-		}
-		printf("\nit = %d, root_id  = %d", i, db->db_info.root_id);
-		close(db);
-	}
 	 
 	if (!(db = dbcreate("testdb.db", dbc))) {
 			db = dbopen("testdb.db");
 	}
+	printf("close?1/0:");
+	scanf("%d", &clos);
 	
-	for(i = 0; i < N; i++) {
-		id[i] = block_allocate(db);
-		printf("\nid = %d", id[i]);
-	}
-	
-	for(i = 0; i < N; i++) {
-		block_free(db, id[i]);
-	}
-	
-	printf("\n------------------------");
-	
-	for(i = 0; i < N; i++) {
-		id[i] = block_allocate(db);
-		printf("\nid = %d", id[i]);
-	}
-	
-	for(i = 0; i < N; i++) {
-		block_free(db, id[i]);
+	while(!clos)
+	{
+		printf("choose:\n 1 - insert;\n 2 - search.\n");
+		scanf("%d", &choose);
+		if(choose == 1)
+		{
+			/* insert */
+			printf("key:");
+			scanf("%d", (int *)key.data);
+			printf("value:");
+			scanf("%d", (int *)data.data);
+			put(db, &key, &data);
+		} 
+		else if (choose == 2)
+		{
+			/* serach*/
+			printf("key:");
+			scanf("%d", (int *)key.data);
+			if (!get(db, &key, &data))
+				printf("key = %d value = %d\n", *(int *)(key.data), *(int *)(data.data));
+			else 
+				printf("not found\n");
+		}
+		else
+		{
+			;
+		}
+			
+		printf("close?1/0:");
+		scanf("%d", &clos);
+
 	}
 	
 	close(db);
