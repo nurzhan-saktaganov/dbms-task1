@@ -341,8 +341,6 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 	i = 0;
 	while( i < key_number 
 			&& cmpkeys(key->data, key_i_ptr, key->size, key_lens[i]) > 0){
-		printf("key_i_ptr = %d\n",*(int *)(key_i_ptr));
-		printf("key_len = %d\n", key_lens[i]);
 		key_i_ptr += key_lens[i];
 		value_i_ptr += value_lens[i];
 		i++;
@@ -359,7 +357,9 @@ int b_tree_search(const struct DB *db, void *node, struct DBT *key, struct DBT *
 	} else {
 		child_node = malloc(db->db_info.chunk_size);
 		read_block_from_file(db, child_node, block_ids[i]);
+		printf("level in\n");
 		res = b_tree_search(db, child_node, key, data);
+		printf("level out\n");
 		free(child_node);
 	}
 	
@@ -414,8 +414,6 @@ void add_to_leaf(const struct DB *db, void *leaf, struct DBT *key,
 	void *m_leaf_values;
 	
 	int i;
-	
-	printf("ADD TO LEAF\n");
 	
 	leaf_key_count = (int *)leaf;
 	m_leaf_key_count = (int *)m_leaf;
@@ -603,7 +601,7 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 		parent_key_count = (int *) parent;
 		t_parent_key_count = (int *)t_parent;
 		*t_parent_key_count = *parent_key_count + 1;
-		*(char *)(t_parent + sizeof(int)) = (char) 1;
+		*(char *)(t_parent + sizeof(int)) = 0;//*(char *)(parent + sizeof(int)) ;
 		parent_keys_size = (int *)(parent + sizeof(int) + sizeof(char));
 		t_parent_keys_size = (int *)(t_parent + sizeof(int) + sizeof(char));
 		parent_values_size = parent_keys_size + *parent_key_count;
@@ -781,8 +779,6 @@ int b_tree_insert(const struct DB *db, void *node, struct DBT *key,
 	int i_am_modified = 0;
 	int modified_me_size;	
 	
-	printf("B_TREE_INSERT\n");
-	
 	modified_me_size = 2 * db->db_info.chunk_size;
 	
 	is_leaf = *(char *)(node + sizeof(int));
@@ -814,7 +810,8 @@ int b_tree_insert(const struct DB *db, void *node, struct DBT *key,
 	}
 	
 	//TODO split and etc.
-	split_child(db, modified_parent, modified_me, block_id);	
+	printf("block_size = %d\n", get_block_size(modified_me));
+	split_child(db, modified_parent, modified_me, block_id);
 	
 	free(modified_me);
 	return 1;
@@ -830,7 +827,6 @@ int put(const struct DB *db_in, struct DBT *key, struct DBT *data)
 	int *child_id;
 	int new_block_id;
 	struct DB *db = db_in;
-	printf("PUT\n");
 	
 	pseudo_root_size = 2 * db->db_info.chunk_size;
 	pseudo_root = malloc(pseudo_root_size);
@@ -857,13 +853,13 @@ int put(const struct DB *db_in, struct DBT *key, struct DBT *data)
 }
  
 int main(int argc, char **argv) {
-#define N 15
+#define N 199
 #define Kb *1000
 #define Mb *1000000
 
 	struct DBC dbc;
 	struct DB *db;
-	//int i;
+	int i, j;
 	struct DBT key;
 	struct DBT data;
 	int clos;
@@ -881,16 +877,34 @@ int main(int argc, char **argv) {
 	if (!(db = dbcreate("testdb.db", dbc))) {
 			db = dbopen("testdb.db");
 	}
-	printf("close?1/0:");
-	scanf("%d", &clos);
+	//printf("close?1/0:");
+	//scanf("%d", &clos);
+	for(i = 0; i < N; i++) {
+		*(int *)(key.data) = i;
+		*(int *)(data.data) = i;
+		put(db, &key, &data);
+	}
+	j = 0;
+	for(i = 0; i < N; i++) {
+		*(int *)(key.data) = i;
+		if (!get(db, &key, &data))
+		{
+			;//printf("k, v: %d, %d", *(int *)(key.data), *(int *)(data.data));
+			if(*(int *)(key.data)!= *(int *)(data.data))
+				printf("alert!!!\n");
+			j++;
+		}
+	}
 	
+	printf("j = %d\n", j);
+	
+	/*
 	while(!clos)
 	{
 		printf("choose:\n 1 - insert;\n 2 - search.\n");
 		scanf("%d", &choose);
 		if(choose == 1)
 		{
-			/* insert */
 			printf("key:");
 			scanf("%d", (int *)key.data);
 			printf("value:");
@@ -899,7 +913,6 @@ int main(int argc, char **argv) {
 		} 
 		else if (choose == 2)
 		{
-			/* serach*/
 			printf("key:");
 			scanf("%d", (int *)key.data);
 			if (!get(db, &key, &data))
@@ -915,7 +928,7 @@ int main(int argc, char **argv) {
 		printf("close?1/0:");
 		scanf("%d", &clos);
 
-	}
+	}*/
 	
 	close(db);
 	 
