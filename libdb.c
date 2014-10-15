@@ -739,7 +739,7 @@ void split_child(const struct DB *db, void *parent, void *child, int child_block
 		t_parent_keys_size[i] = child_keys_size[split_point];
 		t_parent_values_size[i] = child_values_size[split_point];
 		t_parent_blocks_id[i] = child_block_id;
-		printf("child_block_id = %d, parent_blocks_id[i] = %d, should be equal\n", child_block_id, parent_blocks_id[i]);
+		//printf("child_block_id = %d, parent_blocks_id[i] = %d, should be equal\n", child_block_id, parent_blocks_id[i]);
 		t_parent_blocks_id[i + 1] = child2_block_id;
 		t_parent_keys += child_keys_size[split_point];
 		t_parent_values += child_values_size[split_point];
@@ -871,33 +871,38 @@ int main(int argc, char **argv) {
 	dbc.db_size = 1 Mb;
 	dbc.chunk_size = 4 Kb;
 	 
-	if (!(db = dbcreate("testdb.db", dbc))) {
-			db = dbopen("testdb.db");
-	}
-	//printf("close?1/0:");
-	//scanf("%d", &clos);
-	for(i = 0; i < N; i++) {
-		*(int *)(key.data) = i;
-		*(int *)(data.data) = i;
-		put(db, &key, &data);
-	}
-	j = 0;
-	for(i = -10; i < N; i++) {
-		*(int *)(key.data) = i;
-		if (!get(db, &key, &data))
-		{
-			;//printf("k, v: %d, %d", *(int *)(key.data), *(int *)(data.data));
-			if(*(int *)(key.data)!= *(int *)(data.data))
-				printf("alert!!!\n");
-			j++;
-		} else
-			printf("not found\n");
-	}
+	if((db = dbcreate("testdb.db", dbc))){
+		
+		printf("DB created\n");
+		for(i = 0; i < N; i++) {
+			*(int *)(key.data) = i;
+			*(int *)(data.data) = i;
+			put(db, &key, &data);
+		}
+		printf("inserted %d elements\n", N);
+		close(db);
+	} else if ((db = dbopen("testdb.db"))) {
+		
+		j = 0;
+		for(i = -10; i < N; i++) {
+			
+			*(int *)(key.data) = i;
+			if (!get(db, &key, &data)) {
+				if(*(int *)(key.data)!= *(int *)(data.data))
+					printf("alert!!!\n");
+				j++;
+			} else {
+				;//printf("not found\n");
+			}
+		}
+		
+		printf("%d/%d of data founded\nj = %d", j, N, j);
 	
-	printf("j = %d\n", j);
-	
-	close(db);
-	unlink("testdb.db");
+		close(db);
+		unlink("testdb.db");
+	} else {
+		printf("There is some error\n");
+	}
 	 
 	return 0;
 }
