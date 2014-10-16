@@ -224,7 +224,7 @@ struct DB *dbcreate(const char *file, const struct DBC confg)
 	int_ptr = (int *)root_block;
 	*int_ptr = 0;
 	/* sign of leaf, i.e. root node is leaf*/
-	*(char *)(int_ptr + 1 ) = 1;
+	*(char *)(int_ptr + 1 ) = (char) 1;
 	
 	/* write to file meta-info */
 	fseek(res->db_info.fp, 0, SEEK_SET);
@@ -368,6 +368,9 @@ int get(const struct DB *db, struct DBT *key, struct DBT *data)
 {
 	 return b_tree_search(db, db->db_info.root_node, key, data);
 }
+
+
+/* insert */
 
 int get_block_size(void *block)
 {
@@ -848,6 +851,295 @@ int put(const struct DB *db_in, struct DBT *key, struct DBT *data)
 	free(pseudo_root);
 	return 0;
 }
+
+/* delete*/
+
+/* returns non zero if we delete key and zero value if there is no such key*/
+int delete_from_leaf(const struct DB *db, void *leaf, const struct DBT *key)
+{
+	void *t_leaf;
+	int *key_count;
+	int *t_key_count;
+	int *keys_size;
+	int *t_keys_size;
+	int *values_size;
+	int *t_values_size;
+	void *keys;
+	void *t_keys;
+	void *values;
+	void *t_values;
+	int i, key_position;
+	void *tmp;
+	
+	/* */
+	{
+		key_count = (int *) leaf;
+		keys_size = (int *)(leaf + sizeof(int) + sizeof(char));
+		values_size = keys_size + *key_count;
+		keys = (leaf + sizeof(char) + (2 + 3 * (*key_count)) * sizeof(int));
+		values = keys;
+		for( i = 0; i < *key_count; i++)
+		{
+			values += keys_size[i];
+		}
+	}
+	
+	/* search */
+	{
+		tmp = keys;
+		i = 0;
+		while( i < *key_count && cmpkeys(key->data, tmp, key->size, keys_size[i]) != 0 )
+		{
+			tmp += keys_size[i];
+			i++;
+		}
+		
+		if(i == *key_count) {
+			/*such key not found*/
+			return 0;
+		} else {
+			key_position = i;
+		}		
+	}
+	
+	t_leaf = malloc(db->db_info.chunk_size);
+	
+	/* */
+	{
+		t_key_count = (int *) t_leaf;
+		*t_key_count = *key_count - 1;
+		*(char *)(t_leaf + sizeof(int)) = (char) 1;
+		t_keys_size = (int *)(t_leaf + sizeof(int) + sizeof(char));
+		t_values_size = t_keys_size + *t_key_count;
+		t_keys = (t_leaf + sizeof(char) + (2 + 3 * (*t_key_count)) * sizeof(int));
+		t_values = t_keys;
+		for( i = 0; i < key_position; i++) {
+			t_values += keys_size[i];
+		}
+		for( i = key_position + 1; i < *key_count; i++) {
+			t_values += keys_size[i];
+		}
+	}
+	/* */
+	{
+		for( i = 0; i < key_position; i++)
+		{
+			memcpy(t_keys, keys, keys_size[i]);
+			memcpy(t_values, values, values_size[i]);
+			keys += keys_size[i];
+			t_keys += keys_size[i];
+			values += values_size[i];
+			t_values += values_size[i];
+			t_keys_size[i] = keys_size[i];
+			t_values_size[i] = values_size[i];
+		}
+			keys += keys_size[key_position];
+			values += values_size[key_position];
+			
+		for( i = key_position + 1; i < *key_count; i++)
+		{
+			memcpy(t_keys, keys, keys_size[i]);
+			memcpy(t_values, values, values_size[i]);
+			keys += keys_size[i];
+			t_keys += keys_size[i];
+			values += values_size[i];
+			t_values += values_size[i];
+			t_keys_size[i - 1] = keys_size[i];
+			t_values_size[i - 1] = values_size[i];
+		}
+	}
+	
+	memcpy(leaf, t_leaf, db->db_info.chunk_size);
+	free(t_leaf);
+	return 1;	
+}
+
+int get_prev_key(const struct *db, void *node, struct DBT *key, struct DBT *value)
+{
+	int *key_count;
+	char *is_leaf;
+	int *key_sizes;
+	int *value_sizes;
+	int *block_ids;
+	void *keys;
+	void *values;
+	/* */
+	int i;
+	int child_size;
+	int child_actual_size;
+	int child_block;
+	int child_modified;
+	void *child;
+	
+	/* init */
+	{
+		key_count = (int *) node;
+		is_leaf = (char *)(node + sizeof(int));
+		key_sizes = (int *)(node + sizeof(int) + sizeof(char));
+		value_sizes = key_sizes + *key_count;
+		block_ids = value_sizes + *key_count;
+		keys = (void *)(block_ids + *key_count + 1);
+		values = keys;
+		for( i = 0; i <*key_count; i++)
+		{
+			values += key_sizes[i];
+		}
+	}
+	
+	if(*is_leaf) {
+		
+		/* copy prev key and value */
+		for( i = 0; i <*key_count - 1; i++)
+		{
+			keys += key_sizes[i];
+			values += value_sizes[i];
+		}
+		
+		key->size = key_sizes[*key_count - 1];
+		key->data = malloc(key->size);
+		memcpy(key->data, keys, key->size);
+		value->size = value_sizes[*key_count - 1];
+		value->data = malloc(value->size);
+		memcpy(value->data, values, value->size);
+		delete_from_leaf(db, node, key);
+		return 1;		
+	}
+	 
+	/* if not leaf */
+	child_size = 2 * db->db_info.chunk_size;
+	child_block = block_ids[*key_count];
+	child = malloc(child_size);
+	read_block_from_file(db, child, child_block);
+	child_modified = get_prev_key(db, child, key, value);
+	if(!child_modified) {
+		free(child);
+		return 0;
+	}	
+	child_actual_size = get_block_size(child);
+	if(child_actual_size < db->db_info.chunk_size / 2)
+	{
+		//TODO try shift_right or merge with left
+		;
+	} else if(child_actual_size > db->db_info.chunk_size){
+		;//TODO split
+	} else {
+		write_block_to_file(db, child, child_block);
+		free(child);
+		return 0;
+	}
+	free(child);
+	return 1;
+}
+
+/* returns non zero if we delete key and zero value if there is no such key*/
+int delete_from_tree(const struct *db, void *node, const struct DBT *key)
+{
+	/* node key count */
+	int *key_count;
+	char *is_leaf;
+	int *key_sizes;
+	int *value_sizes;
+	int *block_ids;
+	void *keys;
+	void *values;
+	int i;
+	
+	/* */
+	void *tmp_keys;
+	void *tmp_values;
+	int found;
+	
+	void *child;
+	int child_size;
+	int child_actual_size;
+	int res;
+	int child_modified;
+	
+	struct DBT key1;
+	struct DBT value1;
+	
+	/* init */
+	{
+		key_count = (int *) node;
+		is_leaf = *(char *)(node + sizeof(int));
+		key_sizes = (int *)(node + sizeof(int) + sizeof(char));
+		value_sizes = key_sizes + *key_count;
+		block_ids = value_sizes + *key_count;
+		keys = (void *)(block_ids + *key_count + 1);
+		values = keys;
+		for(i = 0; i < *key_count; i++)
+		{
+			values += key_sizes[i];
+		}
+	}
+	
+	if(*is_leaf){
+		return delete_from_leaf(db, node, key);
+	}
+	/* search key in current block */
+	{
+		tmp_keys = keys;
+		i = 0;
+		while(i < *key_count && cmpkeys(key->data, tmp_keys, key->size, key_sizes[i]) > 0)
+		{
+			tmp_keys += key_sizes[i];
+			i++;
+		}
+		
+		if(i < *key_count && cmpkeys(key->data, tmp_keys, key->size, key_sizes[i]) == 0){
+			found = 1;
+		} else {
+			found = 0;
+		}
+	}
+	
+	child_size = 2 * db->db_info.chunk_size;
+	child = malloc(child_size);
+	read_block_from_file(db, child, block_ids[i]);
+	if(found) {
+		child_modified = get_prev_key(db, child, &key1, &value1);
+		//TODO replace key
+		
+		if(!child_modified) {
+			free(child);
+			return 1;
+		}
+	} else {
+		child_modified = delete_from_tree(db, child, key);
+		if(!child_modified) {
+			free(child);
+			return 0;
+		}
+	}
+	
+	//TODO check child size
+	child_actual_size = get_block_size(child);
+	if(child_actual_size < db->db_info.chunk_size / 2)
+	{
+		//TODO try shift or merge
+		;
+	} else if(child_actual_size > db->db_info.chunk_size){
+		;//TODO split
+	} else {
+		write_block_to_file(db, child, block_ids[i]);
+		free(child);
+		return 0;
+	}
+	
+	
+	free(child);
+	return 1;
+}
+
+
+
+
+	
+int del(const struct DB *db, const struct DBT *key)
+{
+	return 0;
+}
+
  
 int main(int argc, char **argv) {
 #define N 15000
