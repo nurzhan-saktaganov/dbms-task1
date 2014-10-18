@@ -854,6 +854,359 @@ int put(const struct DB *db_in, struct DBT *key, struct DBT *data)
 
 /* delete*/
 
+int try_shift_left(const struct *db, void *node, void *l_child, int l_child_pos)
+{
+	
+	
+	
+	return 1;
+}
+
+/* it means child actual size < chunk_size / 2 */
+int try_shift_right(const struct DB *db, void *node, void *r_child, int r_child_pos)
+{
+	void *l_child;
+	int l_child_pos;
+	/* size */
+	int *n_key_count;
+	int *l_key_count;
+	int *r_key_count;
+	/* sign of leaf is not required */
+	/* key sizes */
+	int *n_key_sizes;
+	int *l_key_sizes;
+	int *r_key_sizes;
+	/* value sizes */
+	int *n_value_sizes;
+	int *l_value_sizes;
+	int *r_value_sizes;
+	/* block ids*/
+	int *n_block_ids;
+	int *l_block_ids;
+	int *r_block_ids;
+	/* keys */
+	void *n_keys;
+	void *l_keys;
+	void *r_keys;
+	/* values */
+	void *n_values;
+	void *l_values;
+	void *r_values;
+	
+	int success;
+	int i;
+	/* middle key and value */
+	int m_key_size;
+	int m_value_size;
+	
+	int r_size;
+	int l_size;
+	int shift_count;
+	
+	int r_block_id;
+	int l_block_id;
+	
+	
+	/* init parent params */
+	{
+		n_key_count = (int *) node;
+		n_key_sizes = (int *)(node + sizeof(int) + sizeof(char));
+		n_value_sizes = n_key_sizes + *n_key_count;
+		n_block_ids = n_value_sizes + *n_key_count;
+		n_keys = (void *)(n_block_ids + *n_key_count + 1);
+		n_values = n_keys;
+		
+		for(i = 0; i < *n_key_count; i++) {
+			n_values += n_key_sizes[i];
+		}
+	}
+	
+	l_child = malloc(db->db_info.chunk_size);
+	/* load left child */
+	{
+		l_child_pos = r_child_pos - 1;
+		r_block_id = n_block_ids[r_child_pos];
+		l_block_id = n_block_ids[l_child_pos];
+		read_block_from_file(db, l_child, l_block_id);		
+	}
+	
+	/* init left child and right child params */
+	{
+		/* key count */
+		l_key_count = (int *) l_child;
+		r_key_count = (int *) r_child;
+		/* key sizes*/
+		l_key_sizes = (int *)(l_child + sizeof(int) + sizeof(char));
+		r_key_sizes = (int *)(r_child + sizeof(int) + sizeof(char));
+		/* values sizes */
+		l_value_sizes = l_key_sizes + *l_key_count;
+		r_value_sizes = r_key_sizes + *r_key_count;
+		/* block ids */
+		l_block_ids = l_value_sizes + *l_key_count;
+		r_block_ids = r_value_sizes + *r_key_count;
+		/* keys */
+		l_keys = (void *)(l_block_ids + *l_key_count + 1);
+		r_keys = (void *)(r_block_ids + *r_key_count + 1);
+		/* values */
+		l_values = l_keys;
+		r_values = r_keys;
+		
+		for(i = 0; i < *l_key_count; i++){
+			l_values += l_key_sizes[i];
+		}
+		
+		for(i = 0; i < *r_key_count; i++){
+			r_values += r_key_sizes[i];
+		}
+	}
+	
+	/* pre-calculation */
+	{
+		m_key_size = n_key_sizes[r_child_pos - 1];
+		m_value_size = n_value_sizes[r_child_pos - 1];
+		
+		l_size = get_block_size(l_child);
+		r_size = get_block_size(r_child);
+		
+		last_pos = *l_key_count - 1;
+		shift_count = 0;
+		r_size += m_key_size;
+		r_size += m_value_size;
+		l_size -= l_key_sizes[last_pos];
+		l_size -= l_value_sizes[last_pos];
+		shift_count++;
+		last_pos--;
+		
+		while(r_size < db->db_info.chunk_size / 2 && last_pos > 0)
+		{
+			r_size += l_key_size[last_pos + 1];
+			r_size += l_value_size[last_pos + 1];
+			l_size -= l_key_size[last_pos];
+			l_size -= l_value_size[last_pos];
+			shift_count++;
+			last_pos--;
+		}
+		
+		if(l_size < db->db_info.chunk_size / 2){
+			success = 0;
+		} else {
+			success = 1;
+		}
+	}
+	
+	
+	if(!success)
+	{
+		free(l_child);
+		return 0;
+	}
+	/* shift right for shift_count position */	
+	{
+		/* tmp node, left child and right child */
+		void *t_node;
+		void *tl_child;
+		void *tr_child;
+		/* size */
+		int *tn_key_count;
+		int *tl_key_count;
+		int *tr_key_count;
+		/* sign of leaf is not required */
+		/* key sizes */
+		int *tn_key_sizes;
+		int *tl_key_sizes;
+		int *tr_key_sizes;
+		/* value sizes */
+		int *tn_value_sizes;
+		int *tl_value_sizes;
+		int *tr_value_sizes;
+		/* block ids*/
+		int *tn_block_ids;
+		int *tl_block_ids;
+		int *tr_block_ids;
+		/* keys */
+		void *tn_keys;
+		void *tl_keys;
+		void *tr_keys;
+		/* values */
+		void *tn_values;
+		void *tl_values;
+		void *tr_values;
+		
+		int j;
+		
+		t_node = malloc(2 * db->db_info.chunk_size);
+		tl_child = malloc(db->db_info.chunk_size);
+		tr_child = malloc(db->db_info.chunk_size);
+		/* init params */
+		
+		/* key count */
+		tn_key_cout = (int *) t_node;
+		*tn_key_count = *n_key_count;
+		tl_key_count = (int *) tl_child;
+		*tl_key_count = *l_key_count - shift_count;
+		tr_key_count = (int *) tr_child;
+		*tr_key_count = *r_key_count + shift_count;
+		/* key sizes*/
+		tn_key_sizes = (int *)(tn_child + sizeof(int) + sizeof(char));
+		tl_key_sizes = (int *)(tl_child + sizeof(int) + sizeof(char));
+		tr_key_sizes = (int *)(tr_child + sizeof(int) + sizeof(char));
+		/* values sizes */
+		tn_value_sizes = tn_key_sizes + *tn_key_count
+		tl_value_sizes = tl_key_sizes + *tl_key_count;
+		tr_value_sizes = tr_key_sizes + *tr_key_count;
+		/* block ids */
+		tn_block_ids = tn_value_sizes + *tn_key_count;
+		tl_block_ids = tl_value_sizes + *tl_key_count;
+		tr_block_ids = tr_value_sizes + *tr_key_count;
+		/* keys */
+		tn_keys = (void *)(tn_block_ids + *tn_key_count + 1);
+		tl_keys = (void *)(tl_block_ids + *tl_key_count + 1);
+		tr_keys = (void *)(tr_block_ids + *tr_key_count + 1);
+		/* values */
+		tn_values = tn_keys;
+		tl_values = tl_keys;
+		tr_values = tr_keys;
+		
+		//TODO think about block ids
+		
+		/* t_left */
+		for(i = 0; i < *tl_key_count; i++){
+			tl_key_sizes[i] = l_key_sizes[i];
+			tl_value_sizes[i] = l_value_sizes[i];
+			tl_values += tl_key_sizes[i];
+		}
+		
+		/* t_node */
+		for(i = 0; i < *tn_key_cout; i++){
+			tn_key_sizes[i] = n_key_sizes[i];
+			tn_value_sizes[i] = n_value_sizes[i];
+			tn_values += tn_key_sizes[i];
+		}
+
+		tn_values -= tn_key_sizes[r_child_pos - 1];
+		tn_key_sizes[r_child_pos - 1] = l_key_sizes[*tl_key_count];
+		tn_values += tn_key_sizes[r_child_pos - 1];
+		tn_value_sizes[r_child_pos - 1] = l_value_sizes[*tl_key_count];
+		
+		/* t _right */
+		for(i = *tl_key_count + 1, j = 0; i < *l_key_count; i++, j++) {
+			tr_key_sizes[j] = l_key_sizes[i];
+			tr_value_sizes[j] = l_value_sizes[i];
+			tr_values += l_key_sizes[i];
+		}
+		
+		tr_key_sizes[shift_count - 1] = m_key_size;
+		tr_value_sizes[shift_count - 1] = m_value_size;
+		tr_values += m_key_size;
+		
+		for(i = shift_count, j = 0; i < *tr_key_count; i++, j++)
+		{
+			tr_key_sizes[i] = r_key_sizes[j];
+			tr_value_sizes[i] = r_value_sizes[j];
+			tr_values += r_key_sizes[j];
+		}
+		
+		/* copy to tmp nodes */
+		/* t_left */
+		for(i = 0; i < *tl_key_count; i++){
+			memcpy(tl_keys, l_keys, tl_key_sizes[i]);
+			memcpy(tl_values, l_values, tl_key_sizes[i]);
+			l_keys += tl_key_sizes[i];
+			tl_keys += tl_key_sizes[i];
+			l_values += tl_value_sizes[i];
+			tl_values += tl_value_sizes[i];
+		}
+		
+		/* t_node */
+		for(i = 0; i < r_child_pos - 1; i++) {
+			memcpy(tn_keys, n_keys, tn_key_sizes[i]);
+			memcpy(tn_values, n_values, tn_value_sizes[i]);
+			n_keys += tn_key_sizes[i];
+			tn_keys += tn_key_sizes[i];
+			n_values += tn_value_sizes[i];
+			tn_values += tn_Value_sizes[i];
+		}
+		
+		memcpy(tn_keys, src1, tn_key_sizes[r_child_pos - 1]);
+		memcpy(tn_values, src2, tn_value_sizes[r_child_pos - 1]);
+		tn_keys += tn_key_sizes[r_child_pos - 1];
+		tn_values += tn_value_sizes[r_child_pos - 1];
+		//TODO
+		m_key_src = n_keys;
+		m_value_src = n_values;
+		n_keys += m_key_size;
+		n_values += m_value_size;
+		
+		for(i = r_child_pos; i < *tn_key_count; i++)
+		{
+			memcpy(tn_keys, n_keys, tn_key_sizes[i]);
+			memcpy(tn_values, n_values, tn_value_sizes[i]);
+			n_keys += tn_key_sizes[i];
+			tn_keys += tn_key_sizes[i];
+			n_values += tn_value_sizes[i];
+			tn_values += tn_Value_sizes[i];
+		}
+		
+		/* t _right ????*/
+		
+		for(i = *tl_key_count + 1; i < *l_key_count; i++)
+		{
+			memcpy(tr_keys, l_keys, l_key_sizes[i]);
+			memcpy(tr_values, l_values, l_value_sizes[i]);
+			l_keys += l_key_sizes[i];
+			tr_keys += l_key_sizes[i];
+			l_values += l_value_sizes[i];
+			tr_values += value_sizes[i];
+		}
+		
+		memcpy(tr_keys, m_key_src, m_key_size);
+		memcpy(tr_values, m_key_src, m_value_size);
+		tr_keys += m_key_size;
+		tr_values += m_key_value;
+		
+		for( i = 0; i < *r_key_count; i++)
+		{
+			memcpy(tr_keys, r_keys, r_key_sizes[i]);
+			memcpy(tr_values, r_values, r_value_sizes[i]);
+			r_keys += r_key_sizes[i];
+			tr_keys += r_key_sizes[i];
+			r_values += r_value_sizes[i];
+			tr_values += r_value_sizes[i];
+		}
+			
+		memcpy(node, t_node, 2 * db->db_info.chunk_size);
+		memcpy(l_child, tl_child, db->db_info.chunk_size);
+		memcpy(r_child, tr_child, db->db_info.chunk_size);
+		
+		write_block_to_file(db, l_child, l_block_id);
+		
+		free(t_node);
+		free(tl_child);
+		free(tr_child);
+	}
+	
+	
+	free(l_child);
+	return success;
+}
+
+int try_merge_with_left(const struct DB *db, void *node, void *child, int r_child_pos)
+{
+	
+	
+	
+	
+	return 1;
+}
+
+int try_merge_with_right(const struct DB *db, void *none, void *child, int l_child_pos)
+{
+	
+	
+	
+	return 1;
+}
+
 /* returns non zero if we delete key and zero value if there is no such key*/
 int delete_from_leaf(const struct DB *db, void *leaf, const struct DBT *key)
 {
@@ -1018,8 +1371,16 @@ int get_prev_key(const struct *db, void *node, struct DBT *key, struct DBT *valu
 	child_actual_size = get_block_size(child);
 	if(child_actual_size < db->db_info.chunk_size / 2)
 	{
-		//TODO try shift_right or merge with left
-		;
+		//TODO realize below functions
+		success = 0;
+		if(!success && *key_count > 0) {
+			/* if there at least one element */
+			success = try_shift_right(db, node, child, *key_count);
+		}
+		if(!success && *key_count > 0) {
+			/* if there at least one element */
+			success = try_merge_with_left(db, node, child, *key_count);
+		}
 	} else if(child_actual_size > db->db_info.chunk_size){
 		;//TODO split
 	} else {
@@ -1054,6 +1415,7 @@ int delete_from_tree(const struct *db, void *node, const struct DBT *key)
 	int child_actual_size;
 	int res;
 	int child_modified;
+	int success;
 	
 	struct DBT key1;
 	struct DBT value1;
@@ -1100,6 +1462,10 @@ int delete_from_tree(const struct *db, void *node, const struct DBT *key)
 		child_modified = get_prev_key(db, child, &key1, &value1);
 		//TODO replace key
 		
+		/* dealloc memory */
+		free(key1.data);
+		free(value1.data);
+		
 		if(!child_modified) {
 			free(child);
 			return 1;
@@ -1112,12 +1478,27 @@ int delete_from_tree(const struct *db, void *node, const struct DBT *key)
 		}
 	}
 	
-	//TODO check child size
 	child_actual_size = get_block_size(child);
 	if(child_actual_size < db->db_info.chunk_size / 2)
 	{
-		//TODO try shift or merge
-		;
+		//TODO realize below functions
+		//TODO think about logic
+		success = 0;
+		if (!success i > 0) {
+			/* if not leftmost */
+			success = try_shift_right(db, node, child, i);
+		}
+		if(!success && i < *key_count) {
+			/* if not rightmost */
+			success = try_shift_left(db, node, child, i);
+		}
+		if(!success && i > 0) {
+			/* if not leftmost */
+			success = try_merge_with_left(db, node, child, i);
+		} else if (!success && i < *key_count) {
+			/* if not rightmost */
+			success = try_merge_with_right(db, node, child, i);
+		}
 	} else if(child_actual_size > db->db_info.chunk_size){
 		;//TODO split
 	} else {
@@ -1125,7 +1506,6 @@ int delete_from_tree(const struct *db, void *node, const struct DBT *key)
 		free(child);
 		return 0;
 	}
-	
 	
 	free(child);
 	return 1;
@@ -1135,8 +1515,37 @@ int delete_from_tree(const struct *db, void *node, const struct DBT *key)
 
 
 	
-int del(const struct DB *db, const struct DBT *key)
+int del(const struct DB *db_in, const struct DBT *key)
 {
+	/* t_node - tmp node*/
+	void *t_node;
+	int t_node_size;
+	int t_node_actual_size;
+	int modified;
+	int *t_key_count;
+	struct DB *db = db_in;
+	
+	
+	t_node_size = 2 * db->db_info.chunk_size;
+	t_node = malloc(t_node_size);
+	memcpy(t_node, db->db_info.root_node);
+	modified = delete_from_tree(db, t_node, key);
+	if(!modified) {
+		free(t_node);
+		return 0;
+	}
+	
+	t_key_count = (int *) t_node;
+	if(*t_key_count == 0) {
+		//TODO make child the root
+		;
+	} else if (get_block_size(t_node) > db->db_info.chunk_size){
+		//TODO split root node
+		;
+	}		
+		
+	
+	free(t_node);
 	return 0;
 }
 
