@@ -1,4 +1,9 @@
 
+#include "libdb.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define b0000_0000 (char) 0
 #define b0000_0001 (char) 1
 #define b0000_0010 (char) 2
@@ -31,7 +36,7 @@ int cmpkeys(void *key1, void *key2, int size1, int size2)
 }
 
 /* returns block offset in file by id */
-long int block_offset_in_file(const struct DB *db, int block_id)
+long int block_offset_in_file(struct MY_DB *db, int block_id)
 {
 	long int offset = block_id;
 	return offset *= db->db_info.chunk_size;
@@ -39,7 +44,7 @@ long int block_offset_in_file(const struct DB *db, int block_id)
 
 /* returns id of allocated block */
 /* numeration from 0 */
-int block_allocate(struct DB *db)
+int block_allocate(struct MY_DB *db)
 {
 	int i;
 	int j = 0;
@@ -96,7 +101,7 @@ int block_allocate(struct DB *db)
 }
 
 /* numeration from 0 */
-void block_free(struct DB *db, int block_id)
+void block_free(struct MY_DB *db, int block_id)
 {
 	int i = block_id / 8; /* byte position in bitmap */
 	int j = block_id % 8 + 1; /* bit position in byte */
@@ -128,7 +133,7 @@ void block_free(struct DB *db, int block_id)
 	return;
 }
 
-void write_block_to_file(const struct DB *db, void *block, int block_id)
+void write_block_to_file(struct MY_DB *db, void *block, int block_id)
 {
 	long int offset = block_offset_in_file(db, block_id);
 	fseek(db->db_info.fp, offset, SEEK_SET);
@@ -136,7 +141,7 @@ void write_block_to_file(const struct DB *db, void *block, int block_id)
 	return;
 }
 
-void read_block_from_file(struct DB *db, void *block, int block_id)
+void read_block_from_file(struct MY_DB *db, void *block, int block_id)
 {
 	long int offset = block_offset_in_file(db, block_id);
 	fseek(db->db_info.fp, offset, SEEK_SET);
@@ -146,9 +151,9 @@ void read_block_from_file(struct DB *db, void *block, int block_id)
 
 
 /* We can not create db, if db with same name already exists */
-struct DB *dbcreate(const char*file, const struct DBC confg)
+struct DB *dbcreate(const char *file, struct DBC confg)
 {
-	struct DB *res;
+	struct MY_DB *res;
 	char buf;
 	db_header hdr;
 	int tmp1;
@@ -162,9 +167,9 @@ struct DB *dbcreate(const char*file, const struct DBC confg)
 		conf.chunk_size = 1024;
 	}
 	
-	res = (struct DB *) malloc(sizeof(struct DB));
+	res = (struct MY_DB *) malloc(sizeof(struct MY_DB));
 	/* just for good form :) */
-	memset( res, 0, sizeof(struct DB));
+	memset( res, 0, sizeof(struct MY_DB));
 		
 	res->db_info.fp = fopen(file, "r+");
 	if (res->db_info.fp != NULL) {
@@ -182,7 +187,7 @@ struct DB *dbcreate(const char*file, const struct DBC confg)
 	/* prepare a db's header */
 	hdr.db_size = conf.db_size;
 	hdr.chunk_size = conf.chunk_size;
-	hdr.mem_size = conf.mem_size;
+	//hdr.mem_size = conf.mem_size;
 	/* bitmap - one bit for one chunk */
 	hdr.bitmap_size = conf.db_size / conf.chunk_size / 8;
 	/* tmp1 is size of all meta-info in bytes */
@@ -202,7 +207,7 @@ struct DB *dbcreate(const char*file, const struct DBC confg)
 	
 	res->db_info.db_size = conf.db_size;
 	res->db_info.chunk_size = conf.chunk_size;
-	res->db_info.mem_size = conf.mem_size;
+	//res->db_info.mem_size = conf.mem_size;
 	
 	res->db_info.bitmap_size = hdr.bitmap_size;
 	res->db_info.bitmap_start_index = hdr.bitmap_start_index;
@@ -232,17 +237,23 @@ struct DB *dbcreate(const char*file, const struct DBC confg)
 	/* write to file root node */
 	write_block_to_file(res, root_block, hdr.root_id);
 	
-	return res;
+	/* init functions */
+	res->close = close;
+	res->del = del;
+	res->get = get;
+	res->put = put;
+	
+	return (struct DB *)res;
 }
 
 /* We can not open db, if there no db with that name */
 struct DB *dbopen (const char *file)
 {
-	struct DB *res;
+	struct MY_DB *res;
 	db_header hdr;
 	char *bitmap;
 	
-	res = (struct DB *) malloc(sizeof(struct DB));
+	res = (struct MY_DB *) malloc(sizeof(struct MY_DB));
 	
 	res->db_info.fp = fopen(file, "r+");
 	if (res->db_info.fp == NULL) {
@@ -265,12 +276,19 @@ struct DB *dbopen (const char *file)
 	res->db_info.root_node = (void *) malloc(hdr.chunk_size);
 	read_block_from_file(res, res->db_info.root_node, hdr.root_id);
 	
-	return res;
+	/* init functions */
+	res->close = close;
+	res->del = del;
+	res->get = get;
+	res->put = put;
+	
+	return (struct DB *)res;
 }
 
-int close(const struct DB *db){
+int close(struct DB *db_in){
 	
 	db_header hdr;
+	struct MY_DB *db = (struct MY_DB *) db_in;
 	
 	hdr.db_size = db->db_info.db_size;
 	hdr.chunk_size = db->db_info.chunk_size;
@@ -294,9 +312,8 @@ int close(const struct DB *db){
 	return fclose(db->db_info.fp);
 }
 
-/* search */
 
-int b_tree_search(struct DB *db, void *node, struct DBT *key, struct DBT *data)
+int b_tree_search(struct MY_DB *db, void *node, struct DBT *key, struct DBT *data)
 {
 	
 	int key_number;
@@ -306,7 +323,6 @@ int b_tree_search(struct DB *db, void *node, struct DBT *key, struct DBT *data)
 	int *block_ids;
 	void *key_i_ptr; /* pointer to current key */
 	void *value_i_ptr;
-	
 	int i;
 	int res;
 	void *child_node;
@@ -351,13 +367,13 @@ int b_tree_search(struct DB *db, void *node, struct DBT *key, struct DBT *data)
 	return res;
 }
 
-int get(struct DB *db, struct DBT *key, struct DBT *data)
+int get(struct DB *db_in, struct DBT *key, struct DBT *data)
 {
+	struct MY_DB *db = (struct MY_DB *) db_in;
 	 return b_tree_search(db, db->db_info.root_node, key, data);
 }
 
 /* insert */
-
 
 int get_block_size(void *block)
 {
@@ -383,7 +399,7 @@ int get_block_size(void *block)
 }
 
 /* m_leaf - modified leaf */
-void add_to_leaf(struct DB *db, void *leaf, struct DBT *key,
+void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 									struct DBT *data, void *m_leaf)
 {
 	int *leaf_key_count;
@@ -467,7 +483,7 @@ void add_to_leaf(struct DB *db, void *leaf, struct DBT *key,
 	return;
 }
 
-int get_child_block_id_to_insert(struct DB *db, void *node, struct DBT *key)
+int get_child_block_id_to_insert(struct MY_DB *db, void *node, struct DBT *key)
 {
 	int child_block_id;
 	int key_count;
@@ -494,7 +510,7 @@ int get_child_block_id_to_insert(struct DB *db, void *node, struct DBT *key)
 	return child_block_id;
 }
 
-int get_split_point(struct DB *db, void *node)
+int get_split_point(struct MY_DB *db, void *node)
 {
 	int split_point;
 	int key_count;
@@ -522,7 +538,7 @@ int get_split_point(struct DB *db, void *node)
 	return split_point;
 }
 
-void split_child(struct DB *db, void *parent, void *child, int child_block_id)
+void split_child(struct MY_DB *db, void *parent, void *child, int child_block_id)
 {
 	/*t_parent - tmp parent*/
 	void *t_parent;
@@ -757,7 +773,7 @@ void split_child(struct DB *db, void *parent, void *child, int child_block_id)
 	return;
 }
 
-int b_tree_insert(struct DB *db, void *node, struct DBT *key,
+int b_tree_insert(struct MY_DB *db, void *node, struct DBT *key,
 					struct DBT *data, void *modified_parent, int block_id)
 {	
 	char is_leaf;
@@ -802,8 +818,9 @@ int b_tree_insert(struct DB *db, void *node, struct DBT *key,
 	return 1;
 }
 
-int put(struct DB *db, struct DBT *key, struct DBT *data)
+int put(struct DB *db_in, struct DBT *key, struct DBT *data)
 {
+	struct MY_DB *db = (struct MY_DB *) db_in;
 	void *pseudo_root;
 	int i_am_modified;
 	int pseudo_root_size;
@@ -836,9 +853,8 @@ int put(struct DB *db, struct DBT *key, struct DBT *data)
 	return 0;
 }
 
-/* delete */
 
-int try_shift_left(struct DB *db, void *node, void *l_child, int l_child_pos)
+int try_shift_left(struct MY_DB *db, void *node, void *l_child, int l_child_pos)
 {
 	void *r_child;
 	int r_child_pos;
@@ -1199,9 +1215,8 @@ int try_shift_left(struct DB *db, void *node, void *l_child, int l_child_pos)
 	return success;
 }
 
-
 /* it means child actual size < chunk_size / 2 */
-int try_shift_right(struct DB *db, void *node, void *r_child, int r_child_pos)
+int try_shift_right(struct MY_DB *db, void *node, void *r_child, int r_child_pos)
 {
 	void *l_child;
 	int l_child_pos;
@@ -1554,7 +1569,7 @@ int try_shift_right(struct DB *db, void *node, void *r_child, int r_child_pos)
 }
 
 
-int try_merge_with_left(struct DB *db, void *node, void *r_child, int r_child_pos)
+int try_merge_with_left(struct MY_DB *db, void *node, void *r_child, int r_child_pos)
 {
 	void *l_child;
 	int *n_key_count;
@@ -1821,7 +1836,7 @@ int try_merge_with_left(struct DB *db, void *node, void *r_child, int r_child_po
 }
 
 
-int try_merge_with_right(struct DB *db, void *node, void *l_child, int l_child_pos)
+int try_merge_with_right(struct MY_DB *db, void *node, void *l_child, int l_child_pos)
 {
 	void *r_child;
 	int *n_key_count;
@@ -2090,7 +2105,7 @@ int try_merge_with_right(struct DB *db, void *node, void *l_child, int l_child_p
 
 
 /* returns non zero if we delete key and zero value if there is no such key*/
-int delete_from_leaf(struct DB *db, void *leaf, const struct DBT *key)
+int delete_from_leaf(struct MY_DB *db, void *leaf, const struct DBT *key)
 {
 	void *t_leaf;
 	int *key_count;
@@ -2192,7 +2207,7 @@ int delete_from_leaf(struct DB *db, void *leaf, const struct DBT *key)
 	return 1;	
 }
 
-int get_prev_key(struct DB *db, void *node, struct DBT *key, struct DBT *value)
+int get_prev_key(struct MY_DB *db, void *node, struct DBT *key, struct DBT *value)
 {
 	int *key_count;
 	char *is_leaf;
@@ -2286,7 +2301,7 @@ int get_prev_key(struct DB *db, void *node, struct DBT *key, struct DBT *value)
 
 
 /* returns non zero if we delete key and zero value if there is no such key*/
-int delete_from_tree(struct DB *db, void *node, const struct DBT *key)
+int delete_from_tree(struct MY_DB *db, void *node, const struct DBT *key)
 {
 	/* node key count */
 	int *key_count;
@@ -2442,13 +2457,13 @@ int delete_from_tree(struct DB *db, void *node, const struct DBT *key)
 	child_actual_size = get_block_size(child);
 	if(child_actual_size < db->db_info.chunk_size / 2)
 	{
-		if (i > 0) {
-			/* if not leftmost */
-			success = try_shift_right(db, node, child, i);
-		}
-		if(!success && i < *key_count) {
+		if (i < *key_count) {
 			/* if not rightmost */
 			success = try_shift_left(db, node, child, i);
+		}
+		if(!success && i > 0) {
+			/* if not leftmost */
+			success = try_shift_right(db, node, child, i);
 		}
 		if(!success && i > 0) {
 			/* if not leftmost */
@@ -2473,15 +2488,15 @@ int delete_from_tree(struct DB *db, void *node, const struct DBT *key)
 	return success + found;
 }
 
-int del(struct DB *db, const struct DBT *key)
+int del(struct DB *db_in, struct DBT *key)
 {
 	/* t_node - tmp node*/
+	struct MY_DB *db = (struct MY_DB *) db_in;
 	void *t_node;
 	int t_node_size;
 	//int t_node_actual_size;
 	int modified;
 	int *t_key_count;
-	
 	
 	t_node_size = 2 * db->db_info.chunk_size;
 	t_node = malloc(t_node_size);
@@ -2496,10 +2511,10 @@ int del(struct DB *db, const struct DBT *key)
 	t_key_count = (int *) t_node;
 	if(*t_key_count == 0) {
 		//TODO make child the root
-		printf("wtf\n");
+		//printf("wtf\n");
 	} else if (get_block_size(t_node) > db->db_info.chunk_size){
 		//TODO split root node
-		printf("too_bad\n");
+		//printf("too_bad\n");
 	}		
 	memcpy(db->db_info.root_node, t_node, db->db_info.chunk_size);
 	write_block_to_file(db, t_node, db->db_info.root_id);
@@ -2508,9 +2523,12 @@ int del(struct DB *db, const struct DBT *key)
 	return 0;
 }
 
+
+
+
 /* ok */
 
-void printdb(struct DB *db, void *node)
+void printdb(struct DB *db_in, void *node)
 {
 	int count = *(int *)(node);
 	char leaf = *(char *)(node + sizeof(int));
@@ -2520,6 +2538,7 @@ void printdb(struct DB *db, void *node)
 	int *keys =  b_ids + count + 1;
 	int i;
 	void *child;
+	struct MY_DB *db = (struct MY_DB *) db_in;
 	
 	if(leaf) {
 		for(i = 0; i < count; i++)
@@ -2531,83 +2550,13 @@ void printdb(struct DB *db, void *node)
 	for(i = 0; i < count; i++)
 	{
 		read_block_from_file(db, child, b_ids[i]);
-		printdb(db, child);
+		printdb((struct DB *)db, child);
 		printf("%d\n", keys[i]);
 	}
 	
 	read_block_from_file(db, child, b_ids[i]);
-	printdb(db, child);
+	printdb((struct DB *)db, child);
 
 	free(child);
 	return;
-}
- 
-int main(int argc, char **argv) {
-#define M 100000
-#define N 150000
-
-#define Kb *1000
-#define Mb *1000000
-
-	struct DBC dbc;
-	struct DB *db;
-	int i, j;
-	struct DBT key;
-	struct DBT data;
-
-	key.data = malloc(sizeof(int));
-	key.size = sizeof(int);
-	data.data = malloc(sizeof(int));
-	data.size = sizeof(int);
-	
-	dbc.mem_size = 0;
-	dbc.db_size = 100 Mb;
-	dbc.chunk_size = 4 Kb;
-	 
-	if((db = dbcreate("testdb.db", dbc))){
-		
-		printf("DB created\n");
-		for(i = 0; i < N; i++) {
-			*(int *)(key.data) = i;
-			*(int *)(data.data) = i;
-			put(db, &key, &data);
-		}	
-		
-		printf("inserted %d elements\n", N);
-		
-		for(i = M; i < N ; i++) {
-			*(int *)(key.data) = i;
-			*(int *)(data.data) = i;
-			del(db, &key);
-		}
-		
-		printf("deleted %d elements\n", N - M);
-		
-		//printdb(db, db->db_info.root_node);
-		close(db);
-	} else if ((db = dbopen("testdb.db"))) {
-		
-		j = 0;
-		for(i = 0; i < N ; i++) {
-			
-			*(int *)(key.data) = i;
-			if (!get(db, &key, &data)) {
-				if(*(int *)(key.data)!= *(int *)(data.data))
-					printf("alert!!!\n");
-				j++;
-			//	printf("found %d\n", *(int *) key.data);
-			} else {
-				;//printf("not found\n");
-			} 
-		}
-		
-		printf("%d/%d of data founded\nj = %d", j, N, j);
-	
-		close(db);
-		unlink("testdb.db");
-	} else {
-		printf("There is some error\n");
-	}
-	 
-	return 0;
 }
