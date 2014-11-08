@@ -3,6 +3,7 @@
 #include "libdb.c"
 
 
+
 void print_tree_depth(struct DB * db_in, char *str)
 {
 	struct MY_DB *db = (struct MY_DB *) db_in;
@@ -30,31 +31,35 @@ void print_total_block(struct DB *db_in, char *str)
 }
 
 int main(int argc, char **argv) {
-#define N 11000
-#define M 1
-
+#define N 20
+#define M 0
+#define KEY_LEN 19
 #define KiB *1024
 #define Mb *1000000
 
 	struct DBC dbc;
 	struct DB *db;
-	int i, j;
+	int i, j, found;
 	struct DBT key;
 	struct DBT data;
-	char buff[20];
+	char buff[KEY_LEN];
 	FILE *fp;
+	FILE *putfile;
+	FILE *getfile;
 	
 	int count;
 	int c;
 	fp = fopen("bigtest.out", "r");
+	putfile = fopen("putcheck.txt", "w+");
+	getfile = fopen("getcheck.txt", "w+");
 
-	key.data = malloc(20);
-	key.size = 20;
-	data.data = malloc(20);
-	data.size = 20;
+	key.data = malloc(KEY_LEN);
+	key.size = KEY_LEN;
+	data.data = malloc(KEY_LEN);
+	data.size = KEY_LEN;
 	
 	/*dbc.mem_size = 0;*/
-	dbc.db_size = 1 Mb;
+	dbc.db_size = 4 Mb;
 	dbc.chunk_size = 1 KiB;
 	
 	int inserted = 0;
@@ -67,11 +72,16 @@ int main(int argc, char **argv) {
 		print_free_block(db, "Empty");
 		
 		printf("DB created\n");
+
+		
+		inserted = 0;
+		for(j = 0; j < 4; j++){
+		fseek(fp, 0, SEEK_SET);
 		for(i = 0; i < N; i++) {
 			//TODO
 			//read from file
 			count = 0;
-			while(count < 20)
+			while(count < KEY_LEN)
 			{
 				buff[count] = fgetc(fp);
 				count++;
@@ -79,23 +89,34 @@ int main(int argc, char **argv) {
 			
 			while((c = fgetc(fp)) != '\n');
 			
-			memcpy(data.data, buff, 20);
-			memcpy(key.data, buff, 20);
-			if(put(db, &key, &data) != -1)
+			memcpy(data.data, buff, KEY_LEN);
+			memcpy(key.data, buff, KEY_LEN);
+			if(put(db, &key, &data) != -1){
+		
+				fwrite(key.data, 1, key.size, putfile);
+					
+				fwrite(" ", 1, 1, putfile);
+				
+				fwrite(data.data, 1, data.size, putfile);
+				
+				fwrite("\n", 1, 1, putfile);
+		
 				inserted++;
-		}	
+			}
+		}
+	}
 		
 		printf("inserted %d elements of %d\n", inserted, N);
 		
-		print_tree_depth(db, "After insert");
-		print_free_block(db, "After insert");
+		//print_tree_depth(db, "After insert");
+		//print_free_block(db, "After insert");
 		fseek(fp, 0, SEEK_SET);
-		
+		deleted = 0;
 		for(i = 0; i < N ; i++) {
 			//TODO
 			//read from file
 			count = 0;
-			while(count < 20)
+			while(count < KEY_LEN)
 			{
 				buff[count] = fgetc(fp);
 				count++;
@@ -106,24 +127,25 @@ int main(int argc, char **argv) {
 			if( i < M)
 				continue;
 			
-			memcpy(data.data, buff, 20);
-			memcpy(key.data, buff, 20);
+			memcpy(data.data, buff, KEY_LEN);
+			memcpy(key.data, buff, KEY_LEN);
 			if(del(db, &key) != -1)
 				deleted++;
 		}
 		
 		printf("deleted %d elements of %d from %d-th\n", deleted, N, M + 1);
+	
 		print_tree_depth(db, "After delete");
 		print_free_block(db, "After delete");
 		print_tree_depth(db, "Opened db");
 		print_free_block(db, "Opened db");
 		fseek(fp, 0, SEEK_SET);
-		j = 0;
+		found = 0;
 		for(i = 0; i < N ; i++) {
 			//TODO
 			//read from file
 			count = 0;
-			while(count < 20)
+			while(count < KEY_LEN)
 			{
 				buff[count] = fgetc(fp);
 				count++;
@@ -132,23 +154,31 @@ int main(int argc, char **argv) {
 			while((c = fgetc(fp)) != '\n');
 			
 			
-			memcpy(key.data, buff, 20);
+			memcpy(key.data, buff, KEY_LEN);
 			if (!get(db, &key, &data)) {
 				if(memcmp(key.data, data.data, key.size))
 					printf("alert!!!\n");
-				j++;
-				//printf("%s\n", (char *)key.data);
+				found++;
+				fwrite(key.data, 1, key.size, getfile);
+					
+				fwrite(" ", 1, 1, getfile);
+				
+				fwrite(data.data, 1, data.size, getfile);
+				
+				fwrite("\n", 1, 1, getfile);
+			
 			} else {
 				;//printf("not found\n");
 			} 
 		}
 		
-		printf("%d/%d of data founded\nj = %d", j, N, j);
-	
-		//db_close(db);
+		
+		printf("deleted %d elements of %d from %d-th\n", deleted, N, M + 1);
+		printf("%d/%d of data founded\nj = %d", found, N, found);
+		db_close(db);
 		unlink("testdb.db");
 		
-		db_close(db);
+		//db_close(db);
 	} else if ((db = dbopen("testdb.db"))) {
 		
 		print_tree_depth(db, "Opened db");
@@ -159,7 +189,7 @@ int main(int argc, char **argv) {
 			//TODO
 			//read from file
 			count = 0;
-			while(count < 20)
+			while(count < KEY_LEN)
 			{
 				buff[count] = fgetc(fp);
 				count++;
@@ -168,7 +198,7 @@ int main(int argc, char **argv) {
 			while((c = fgetc(fp)) != '\n');
 			
 			
-			memcpy(key.data, buff, 20);
+			memcpy(key.data, buff, KEY_LEN);
 			if (!get(db, &key, &data)) {
 				if(memcmp(key.data, data.data, key.size))
 					printf("alert!!!\n");

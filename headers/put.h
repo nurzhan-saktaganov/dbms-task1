@@ -23,34 +23,60 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 	void *leaf_values;
 	void *m_leaf_values;
 	
+	int update = 0;
+	
 	int i;
-	//printf("add_to_leaf\n");
+	
 	leaf_key_count = (int *)leaf;
-	m_leaf_key_count = (int *)m_leaf;
 	/* key number and sign of leaf */
-	*m_leaf_key_count = *leaf_key_count + 1;
-	*(char *)(m_leaf + sizeof(int)) = *(char *)(leaf + sizeof(int));
 	leaf_keys_size = (int *)(leaf + sizeof(int) + sizeof(char));
-	m_leaf_keys_size = (int *)(m_leaf + sizeof(int) + sizeof(char));
 	/* */
 	leaf_values_size = leaf_keys_size + *leaf_key_count;
-	m_leaf_values_size = m_leaf_keys_size + *m_leaf_key_count;	
 	/* setting leaf_keys and m_leaf_keys pointers */
 	leaf_keys = leaf_values_size + 2 * *leaf_key_count + 1;
-	m_leaf_keys = m_leaf_values_size + 2 * *m_leaf_key_count + 1;
 	
 	/* setting leaf_values and m_leaf_values pointers */
 	leaf_values = leaf_keys;
+	
+	for(i = 0; i < *leaf_key_count; i++)
+		leaf_values += leaf_keys_size[i];
+	
+	/* check for update */
+	i = 0;
+	void *tmp = leaf_keys;
+	while(i < *leaf_key_count  && cmpkeys(key->data, tmp, key->size, leaf_keys_size[i]) != 0) {
+		tmp += leaf_keys_size[i];
+		i++;
+	}
+		
+	if(i < *leaf_key_count)
+		update = 1;
+	
+	
+	m_leaf_key_count = (int *)m_leaf;
+	/* key number and sign of leaf */
+	if(update) {
+		*m_leaf_key_count = *leaf_key_count;
+	} else {
+		*m_leaf_key_count = *leaf_key_count + 1;
+	}
+	
+	*(char *)(m_leaf + sizeof(int)) = *(char *)(leaf + sizeof(int));
+	m_leaf_keys_size = (int *)(m_leaf + sizeof(int) + sizeof(char));
+	/* */
+	m_leaf_values_size = m_leaf_keys_size + *m_leaf_key_count;	
+	/* setting leaf_keys and m_leaf_keys pointers */
+	m_leaf_keys = m_leaf_values_size + 2 * *m_leaf_key_count + 1;
+	
+	/* setting leaf_values and m_leaf_values pointers */
 	m_leaf_values = m_leaf_keys;
 	
 	for(i = 0; i < *leaf_key_count; i++)
-	{
-		leaf_values += leaf_keys_size[i];
 		m_leaf_values += leaf_keys_size[i];
-	}
 	
-	m_leaf_values += key->size;
-	
+	if(!update)	
+		m_leaf_values += key->size;
+		
 	/* */
 	i = 0;
 	while(i < *leaf_key_count && cmpkeys(key->data, leaf_keys, key->size, leaf_keys_size[i]) > 0)
@@ -65,20 +91,30 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 		m_leaf_values += leaf_values_size[i];
 		i++;
 	}
-	
+			
 	memcpy(m_leaf_keys, key->data, key->size);
 	memcpy(m_leaf_values, data->data, data->size);
+	
 	m_leaf_keys_size[i] = key->size;
 	m_leaf_keys += key->size;
 	m_leaf_values_size[i] = data->size;
 	m_leaf_values += data->size;
+	int j;
+	j = 1;
+	
+	if(update) {
+		leaf_keys += leaf_keys_size[i];
+		leaf_values += leaf_values_size[i];
+		j = 0;
+		i++;		
+	}
 	
 	while(i < *leaf_key_count)
 	{
 		memcpy(m_leaf_keys, leaf_keys, leaf_keys_size[i]);
 		memcpy(m_leaf_values, leaf_values, leaf_values_size[i]);
-		m_leaf_keys_size[i + 1] = leaf_keys_size[i];
-		m_leaf_values_size[i + 1] = leaf_values_size[i];
+		m_leaf_keys_size[i + j] = leaf_keys_size[i];
+		m_leaf_values_size[i + j] = leaf_values_size[i];
 		leaf_keys += leaf_keys_size[i];
 		m_leaf_keys += leaf_keys_size[i];
 		leaf_values += leaf_values_size[i];
@@ -98,21 +134,20 @@ int get_child_block_id_to_insert(struct MY_DB *db, void *node, struct DBT *key)
 	int *blocks_id;
 	void *keys;
 	int i;
-	//printf("get_child_block_id\n");
+	
 	key_count = *(int *)(node);
 	keys_size = (int *)(node + sizeof(int) + sizeof(char));
 	blocks_id = keys_size + 2 * key_count;
 	keys = (void *)(blocks_id + key_count + 1);
 	
 	i = 0;
-	//printf("key_count %d\n", key_count);
+	
 	while( i < key_count && cmpkeys(key->data, keys, key->size, keys_size[i]) > 0)
 	{
 		keys += keys_size[i];
 		i++;
 	}
 	
-	//printf("exit");
 	child_block_id = blocks_id[i];
 	return child_block_id;
 }
@@ -127,7 +162,6 @@ int b_tree_insert(struct MY_DB *db, void *node, struct DBT *key,
 	int child_block_id;
 	int i_am_modified = 0;
 	int modified_me_size;
-	//printf("b_tree_insert\n");
 	modified_me_size = 2 * db->db_info.chunk_size;
 	
 	is_leaf = *(char *)(node + sizeof(int));
@@ -149,7 +183,6 @@ int b_tree_insert(struct MY_DB *db, void *node, struct DBT *key,
 		free(modified_me);
 		return 0;
 	}
-	
 	
 	if( get_block_size(modified_me) <= db->db_info.chunk_size) {
 		memcpy(node, modified_me, db->db_info.chunk_size);
@@ -174,11 +207,11 @@ int put(struct DB *db_in, struct DBT *key, struct DBT *data)
 	int *child_id;
 	int new_block_id;
 	int tmp;
-	
+		
 	tmp = db->db_info.free_block_count - db->db_info.tree_depth;
 	if(tmp < 3)
 		return -1;
-		
+	
 	pseudo_root_size = 2 * db->db_info.chunk_size;
 	pseudo_root = malloc(pseudo_root_size);
 	key_count = (int *)pseudo_root;

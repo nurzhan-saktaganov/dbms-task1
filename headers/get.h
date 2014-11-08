@@ -17,7 +17,7 @@ int b_tree_search(struct MY_DB *db, void *node, struct DBT *key, struct DBT *dat
 	int i;
 	int res;
 	void *child_node;
-	
+		
 	key_number = *((int *) node);
 	is_leaf = *(char *)(node + sizeof(int));
 	key_lens = (int *)(node + sizeof(int) + sizeof(char));

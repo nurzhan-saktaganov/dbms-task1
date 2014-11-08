@@ -51,7 +51,7 @@ int try_shift_right(struct MY_DB *db, void *node, void *r_child, int r_child_pos
 	int r_block_id;
 	
 	int last_key_pos;
-		
+	
 	//printf("try_shift_right\n");
 	
 	/* init parent params - ok */

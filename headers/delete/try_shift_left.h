@@ -51,7 +51,6 @@ int try_shift_left(struct MY_DB *db, void *node, void *l_child, int l_child_pos)
 	
 	int first_key_pos;
 	
-	
 	//printf("begin\n");
 	/* init parent params - ok */
 	{

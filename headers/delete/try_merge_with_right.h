@@ -47,6 +47,7 @@ int try_merge_with_right(struct MY_DB *db, void *node, void *l_child, int l_chil
 	int *m_block_ids;
 	void *m_keys;
 	void *m_values;
+	
 	/* init parent params - ok */
 	{
 		r_child_pos = l_child_pos + 1;

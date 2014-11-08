@@ -17,7 +17,6 @@ struct DB *dbcreate(const char *file, struct DBC confg)
 	struct DBC conf = confg;
 	char *root_block;
 	int *int_ptr;
-	
 	/* limit for min chunk_size */
 	if(conf.chunk_size < MIN_BLOCK_SIZE) {
 		conf.chunk_size = MIN_BLOCK_SIZE;

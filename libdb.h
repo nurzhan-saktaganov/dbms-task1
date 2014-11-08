@@ -2,6 +2,8 @@
 #define LIBDB_H
 
 #include <string.h>
+/* */
+/* */
 
 #define MIN_BLOCK_SIZE 1024
 

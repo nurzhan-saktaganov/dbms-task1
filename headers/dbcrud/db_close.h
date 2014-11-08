@@ -10,7 +10,7 @@ int db_close(struct DB *db_in){
 	
 	db_header hdr;
 	struct MY_DB *db = (struct MY_DB *) db_in;
-	
+		
 	hdr.db_size = db->db_info.db_size;
 	hdr.chunk_size = db->db_info.chunk_size;
 	hdr.mem_size = db->db_info.mem_size;

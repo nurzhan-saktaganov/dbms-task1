@@ -47,8 +47,7 @@ int try_merge_with_left(struct MY_DB *db, void *node, void *r_child, int r_child
 	int *m_block_ids;
 	void *m_keys;
 	void *m_values;
-	
-		
+			
 	/* init parent params - ok */
 	{
 		n_key_count = (int *) node;

@@ -34,7 +34,7 @@ int del(struct DB *db_in, struct DBT *key)
 		free(t_node);
 		return -1;
 	}
-	
+		
 	if(!modified) {
 		free(t_node);
 		return 0;
@@ -59,7 +59,7 @@ int del(struct DB *db_in, struct DBT *key)
 	memcpy(db->db_info.root_node, t_node, db->db_info.chunk_size);
 	write_block_to_file(db, t_node, db->db_info.root_id);	
 	free(t_node);
-	
+
 	return 0;
 }
 
