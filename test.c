@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
 		
 		inserted = 0;
-		for(j = 0; j < 1; j++){
+		for(j = 0; j < 2; j++){
 		fseek(fp, 0, SEEK_SET);
 		for(i = 0; i < N; i++) {
 			//TODO
