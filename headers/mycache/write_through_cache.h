@@ -44,7 +44,7 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 	lseek(db->db_info.fd, offset, 0);
 	write(db->db_info.fd, block, db->db_info.chunk_size);
 	return;
-
+	
 	if(db->cache.occuped_blocks == db->cache.total_blocks) {
 		/* no free space in cache, flush last */
 		address = address_in_cache(db, db->cache.last);

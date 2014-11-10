@@ -35,13 +35,14 @@ void print_total_block(struct DB *db_in, char *str)
 int main(int argc, char **argv) {
 #define N 50000
 #define M 0
+#define REPEAT 100
 #define KEY_LEN 19
 #define KiB *1024
 #define Mb *1000000
 
 	struct DBC dbc;
 	struct DB *db;
-	int i, j, found;
+	int i, j;
 	struct DBT key;
 	struct DBT data;
 	char buff[KEY_LEN];
@@ -51,7 +52,7 @@ int main(int argc, char **argv) {
 	
 	int count;
 	int c;
-	unlink("testdb.db");
+	//unlink("testdb.db");
 	//fp = fopen("bigtest.out", "r");
 	fp = fopen("workload100k.out", "r");
 	//putfile = fopen("putcheck.txt", "w+");
@@ -63,17 +64,21 @@ int main(int argc, char **argv) {
 	data.size = KEY_LEN;
 	
 	/*dbc.mem_size = 0;*/
-	dbc.db_size = 50 Mb;
+	dbc.db_size = 1.7 Mb;
 	dbc.chunk_size = 1 KiB;
-	dbc.mem_size = 20 KiB;
+	dbc.mem_size = 85 KiB;
 	
 	int inserted = 0;
 	int deleted = 0;
-	
+	int found = 0;
+#ifdef WITH_CACHE	
 #ifdef WITH_AVL
 	printf("WITH AVL\n");
 #else
 	printf("WITHOUT AVL\n");
+#endif
+#else
+	printf("NO CACHE\n");
 #endif
 	
 	if((db = dbcreate("testdb.db", dbc))){
@@ -86,7 +91,7 @@ int main(int argc, char **argv) {
 
 		
 		inserted = 0;
-		for(j = 0; j < 100; j++){
+		for(j = 0; j < 10; j++){
 		fseek(fp, 0, SEEK_SET);
 		for(i = 0; i < N; i++) {
 			//TODO
@@ -115,6 +120,7 @@ int main(int argc, char **argv) {
 				inserted++;
 			}
 		}
+		print_free_block(db, "After insert");
 	}
 		
 		printf("inserted %d elements of %d\n", inserted, N);
@@ -122,6 +128,8 @@ int main(int argc, char **argv) {
 		printf("search = %d\n", search);*/
 		print_free_block(db, "After insert");
 		print_tree_depth(db, "After insert");
+		db_close(db);
+		exit(0);
 		//print_free_block(db, "After insert");
 		fseek(fp, 0, SEEK_SET);
 		deleted = 0;
@@ -189,15 +197,16 @@ int main(int argc, char **argv) {
 		printf("deleted %d elements of %d from %d-th\n", deleted, N, M + 1);
 		printf("%d/%d of data founded\nj = %d", found, N, found);
 		db_close(db);
-		unlink("testdb.db");
+		//unlink("testdb.db");
 		
 		//db_close(db);
 	} else if ((db = dbopen("testdb.db"))) {
 		
 		print_tree_depth(db, "Opened db");
 		print_free_block(db, "Opened db");
+		
+	for(j = 0; j < REPEAT; j++){
 		fseek(fp, 0, SEEK_SET);
-		j = 0;
 		for(i = 0; i < N ; i++) {
 			//TODO
 			//read from file
@@ -215,17 +224,19 @@ int main(int argc, char **argv) {
 			if (!get(db, &key, &data)) {
 				if(memcmp(key.data, data.data, key.size))
 					printf("alert!!!\n");
-				j++;
+				found++;
 			//	printf("found %d\n", *(int *) key.data);
 			} else {
 				;//printf("not found\n");
 			} 
 		}
 		
-		printf("%d/%d of data founded\nj = %d", j, N, j);
+	}
+		
+		printf("%d/%d of data founded\n", found, N);
 	
 		db_close(db);
-		unlink("testdb.db");
+		//unlink("testdb.db");
 	} else {
 		printf("There is some error\n");
 	}

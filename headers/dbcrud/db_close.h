@@ -25,12 +25,12 @@ int db_close(struct DB *db_in){
 	write(db->db_info.fd, &hdr, sizeof(hdr));
 	write(db->db_info.fd, db->db_info.bitmap, hdr.bitmap_size);
 	
+	//flush_cache(db);
 	/* write root block to file*/
 	write_block_to_file(db, db->db_info.root_node, db->db_info.root_id);
-	
-	flush_cache(db);
+#ifdef WITH_CACHE
 	free_cache(db);
-	
+#endif
 	free(db->db_info.root_node);
 	free(db->db_info.bitmap);
 	free((void *)db);

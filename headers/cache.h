@@ -50,14 +50,17 @@ void free_cache(struct MY_DB *db)
 		free(current);
 		current = next;
 	}
+	db->cache.first = NULL;
+	db->cache.last = NULL;
+	db->cache.occuped_blocks = 0;	
 	
 	db->cache.occuped_blocks = 0;
 	free(db->cache.cache_memory);
 	db->cache.cache_memory = NULL;
 #ifdef WITH_AVL
 	bin_tree_clear(db->cache.bin_tree);
+	db->cache.bin_tree = NULL;
 #endif
-	
 	return;
 }
 

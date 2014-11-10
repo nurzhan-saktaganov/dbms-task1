@@ -87,12 +87,14 @@ struct DB *dbcreate(const char *file, struct DBC conf)
 	*(char *)(int_ptr + 1 ) = (char) 1;
 	
 	/* init cache */
+#ifdef WITH_CACHE
 	res->cache.total_blocks = conf.mem_size / conf.chunk_size;
 	res->cache.occuped_blocks = 0;
 	res->cache.first = NULL;
 	res->cache.last = NULL;
 	res->cache.cache_memory = malloc(conf.mem_size);
 	res->cache.bin_tree = NULL;
+#endif
 		
 	/* write to file meta-info */
 	lseek(res->db_info.fd, 0, 0);
