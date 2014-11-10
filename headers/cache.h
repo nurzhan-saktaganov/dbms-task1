@@ -4,8 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef WITH_AVL
+#include "mycache-avl/avl_tree.h"
+#include "mycache-avl/read_through_cache.h"
+#include "mycache-avl/write_through_cache.h"
+#else
 #include "mycache/read_through_cache.h"
 #include "mycache/write_through_cache.h"
+#endif
 
 void* address_in_cache(struct MY_DB *db, cache_block *c_b)
 {
@@ -48,6 +54,9 @@ void free_cache(struct MY_DB *db)
 	db->cache.occuped_blocks = 0;
 	free(db->cache.cache_memory);
 	db->cache.cache_memory = NULL;
+#ifdef WITH_AVL
+	bin_tree_clear(db->cache.bin_tree);
+#endif
 	
 	return;
 }

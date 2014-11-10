@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-//#define WITH_CACHE 1
 #include "libdb.c"
 
 
@@ -34,7 +33,7 @@ void print_total_block(struct DB *db_in, char *str)
 #include <limits.h>
 
 int main(int argc, char **argv) {
-#define N 20000
+#define N 50000
 #define M 0
 #define KEY_LEN 19
 #define KiB *1024
@@ -47,15 +46,16 @@ int main(int argc, char **argv) {
 	struct DBT data;
 	char buff[KEY_LEN];
 	FILE *fp;
-	FILE *putfile;
-	FILE *getfile;
+	//FILE *putfile;
+	//FILE *getfile;
 	
 	int count;
 	int c;
 	unlink("testdb.db");
-	fp = fopen("bigtest.out", "r");
-	putfile = fopen("putcheck.txt", "w+");
-	getfile = fopen("getcheck.txt", "w+");
+	//fp = fopen("bigtest.out", "r");
+	fp = fopen("workload100k.out", "r");
+	//putfile = fopen("putcheck.txt", "w+");
+	//getfile = fopen("getcheck.txt", "w+");
 
 	key.data = malloc(KEY_LEN);
 	key.size = KEY_LEN;
@@ -63,9 +63,9 @@ int main(int argc, char **argv) {
 	data.size = KEY_LEN;
 	
 	/*dbc.mem_size = 0;*/
-	dbc.db_size = 15 Mb;
+	dbc.db_size = 50 Mb;
 	dbc.chunk_size = 1 KiB;
-	dbc.mem_size = 2 KiB;
+	dbc.mem_size = 1 Mb;
 	
 	int inserted = 0;
 	int deleted = 0;
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
 		
 		inserted = 0;
-		for(j = 0; j < 2; j++){
+		for(j = 0; j < 100; j++){
 		fseek(fp, 0, SEEK_SET);
 		for(i = 0; i < N; i++) {
 			//TODO
@@ -112,7 +112,10 @@ int main(int argc, char **argv) {
 	}
 		
 		printf("inserted %d elements of %d\n", inserted, N);
-		//print_tree_depth(db, "After insert");
+		/*printf("success = %d\nmissmatch = %d\n", success, missmatch);
+		printf("search = %d\n", search);*/
+		print_free_block(db, "After insert");
+		print_tree_depth(db, "After insert");
 		//print_free_block(db, "After insert");
 		fseek(fp, 0, SEEK_SET);
 		deleted = 0;
@@ -163,13 +166,13 @@ int main(int argc, char **argv) {
 				if(memcmp(key.data, data.data, key.size))
 					printf("alert!!!\n");
 				found++;
-				fwrite(key.data, 1, key.size, getfile);
+				/*fwrite(key.data, 1, key.size, getfile);
 					
 				fwrite(" ", 1, 1, getfile);
 				
 				fwrite(data.data, 1, data.size, getfile);
 				
-				fwrite("\n", 1, 1, getfile);
+				fwrite("\n", 1, 1, getfile);*/
 			
 			} else {
 				;//printf("not found\n");

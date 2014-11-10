@@ -92,6 +92,7 @@ struct DB *dbcreate(const char *file, struct DBC conf)
 	res->cache.first = NULL;
 	res->cache.last = NULL;
 	res->cache.cache_memory = malloc(conf.mem_size);
+	res->cache.bin_tree = NULL;
 		
 	/* write to file meta-info */
 	lseek(res->db_info.fd, 0, 0);

@@ -79,6 +79,11 @@ void 		flush_cache(struct MY_DB *db);
 
 void 		free_cache(struct MY_DB *db);
 
+bin_tree_node* 	bin_tree_insert(bin_tree_node* p, int k,
+											cache_block *cache_block_ptr);
+											
+bin_tree_node* 	bin_tree_remove(bin_tree_node* p, int k);
 
+cache_block*	bin_tree_search(bin_tree_node* p, int k);
 
 #endif

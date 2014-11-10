@@ -9,8 +9,8 @@ void read_through_cache(struct MY_DB *db, void *block, int block_id) {
 	cache_block *current;
 	long int offset;
 	void *address;
-	current = db->cache.first;
-	while(current != NULL) {
+	current = bin_tree_search(db->cache.bin_tree, block_id);
+	if(current != NULL) {
 		if(current->block_id == block_id) {
 			address = address_in_cache(db, current);
 			memcpy(block, address, db->db_info.chunk_size);
@@ -32,12 +32,13 @@ void read_through_cache(struct MY_DB *db, void *block, int block_id) {
 			db->cache.first = current;
 			return;
 		}
-		//search++;
-		current = current->next;
 	}
 
 	if(db->cache.occuped_blocks == db->cache.total_blocks) {
 		/* no free space in cache, flush last */
+		db->cache.bin_tree = bin_tree_remove(db->cache.bin_tree,
+												db->cache.last->block_id);
+												
 		offset = block_offset_in_file(db, db->cache.last->block_id);
 		address = address_in_cache(db, db->cache.last);
 		lseek(db->db_info.fd, offset, 0);
@@ -51,6 +52,10 @@ void read_through_cache(struct MY_DB *db, void *block, int block_id) {
 		db->cache.first->prev = current;
 		db->cache.first = current;
 		db->cache.first->block_id = block_id;
+		
+		db->cache.bin_tree = bin_tree_insert(db->cache.bin_tree,
+													block_id, current);
+													
 		offset = block_offset_in_file(db, block_id);
 		lseek(db->db_info.fd, offset, 0);
 		read(db->db_info.fd, address, db->db_info.chunk_size);
@@ -69,6 +74,8 @@ void read_through_cache(struct MY_DB *db, void *block, int block_id) {
 		} 
 		
 		db->cache.first = current;
+		db->cache.bin_tree = bin_tree_insert(db->cache.bin_tree,
+													block_id, current);
 		
 		offset = block_offset_in_file(db, block_id);
 		address = address_in_cache(db, db->cache.first);
@@ -77,7 +84,7 @@ void read_through_cache(struct MY_DB *db, void *block, int block_id) {
 		memcpy(block, address, db->db_info.chunk_size);
 		db->cache.occuped_blocks++;
 	}
-	//missmatch++;
+	//mismatch++;
 	return;
 }
 

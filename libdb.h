@@ -32,12 +32,21 @@ typedef struct _cache_block {
 	struct _cache_block *next;
 } cache_block;
 
+typedef struct _bin_tree_node { // структура для представления узлов дерева
+    int key;
+    int height;
+    cache_block *cache_block_ptr;
+    struct _bin_tree_node* left;
+    struct _bin_tree_node* right;
+} bin_tree_node;
+
 typedef struct _db_cache {
 	cache_block *first;
 	cache_block *last;
 	int total_blocks;
 	int occuped_blocks;
 	void *cache_memory;
+	bin_tree_node *bin_tree;
 } db_cache;
 
 typedef struct {

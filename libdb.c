@@ -1,5 +1,6 @@
 
 #include "libdb.h"
+#include "headers/settings.h"
 #include "headers/prototype.h"
 #include "headers/dbcrud.h"
 #include "headers/delete.h"

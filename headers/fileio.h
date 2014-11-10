@@ -1,8 +1,6 @@
 #ifndef FILEIO_H
 #define FILEIO_H
 
-#define WITH_CACHE
-
 #include <unistd.h>
 #include "../libdb.h"
 

@@ -42,6 +42,7 @@ struct DB *dbopen (const char *file)
 	res->cache.first = NULL;
 	res->cache.last = NULL;
 	res->cache.cache_memory = malloc(hdr.mem_size);
+	res->cache.bin_tree = NULL;
 	
 	res->db_info.root_node = (void *) malloc(hdr.chunk_size);
 	read_block_from_file(res, res->db_info.root_node, hdr.root_id);

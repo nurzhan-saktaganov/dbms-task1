@@ -15,7 +15,7 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 		if(current->block_id == block_id) {
 			address = address_in_cache(db, current);
 			memcpy(address, block, db->db_info.chunk_size);
-			
+			//success++;
 			if(current == db->cache.first) {
 				return;
 			} else if (current == db->cache.last){
@@ -32,6 +32,7 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 			db->cache.first = current;			
 			return;
 		}
+		//search++;
 		current = current->next;
 	}
 
@@ -72,7 +73,7 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 		memcpy(address, block, db->db_info.chunk_size);
 		db->cache.occuped_blocks++;
 	}
-	
+	//mismatch++;
 	return;
 }
 
