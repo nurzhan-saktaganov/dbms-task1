@@ -111,7 +111,6 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 		leaf_values += leaf_values_size[i];
 		j = 0;
 		i++;
-		update_count++;	
 	}
 	
 	while(i < *leaf_key_count)

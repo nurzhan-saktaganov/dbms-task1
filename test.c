@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 //#define WITH_CACHE 1
-int update_count = 0;
 #include "libdb.c"
 
 
@@ -113,7 +112,6 @@ int main(int argc, char **argv) {
 	}
 		
 		printf("inserted %d elements of %d\n", inserted, N);
-		printf("updates = %d\n", update_count);
 		//print_tree_depth(db, "After insert");
 		//print_free_block(db, "After insert");
 		fseek(fp, 0, SEEK_SET);
