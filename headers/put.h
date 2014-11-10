@@ -219,11 +219,10 @@ int put(struct DB *db_in, struct DBT *key, struct DBT *data)
 	int *child_id;
 	int new_block_id;
 	int tmp;
-		
+	
 	tmp = db->db_info.free_block_count - db->db_info.tree_depth;
 	if(tmp < 3)
 		return -1;
-	
 	pseudo_root_size = 2 * db->db_info.chunk_size;
 	pseudo_root = malloc(pseudo_root_size);
 	key_count = (int *)pseudo_root;
@@ -244,7 +243,6 @@ int put(struct DB *db_in, struct DBT *key, struct DBT *data)
 		db->db_info.root_id = new_block_id;
 		db->db_info.tree_depth++;
 	}
-	
 	free(pseudo_root);
 	return 0;
 }

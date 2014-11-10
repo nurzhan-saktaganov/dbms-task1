@@ -16,8 +16,11 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 			address = address_in_cache(db, current);
 			memcpy(address, block, db->db_info.chunk_size);
 			
-			if(current == db->cache.first)
+			if(current == db->cache.first) {
 				return;
+			} else if (current == db->cache.last){
+				db->cache.last = db->cache.last->prev;
+			}
 		
 			current->prev->next = current->next;
 			if(current->next != NULL)

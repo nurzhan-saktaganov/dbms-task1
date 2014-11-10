@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 	
 	int count;
 	int c;
-	
+	unlink("testdb.db");
 	fp = fopen("bigtest.out", "r");
 	putfile = fopen("putcheck.txt", "w+");
 	getfile = fopen("getcheck.txt", "w+");
@@ -63,9 +63,9 @@ int main(int argc, char **argv) {
 	data.size = KEY_LEN;
 	
 	/*dbc.mem_size = 0;*/
-	dbc.db_size = 30 Mb;
+	dbc.db_size = 15 Mb;
 	dbc.chunk_size = 1 KiB;
-	dbc.mem_size = 30 Mb;
+	dbc.mem_size = 2 KiB;
 	
 	int inserted = 0;
 	int deleted = 0;
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
 		
 		inserted = 0;
-		for(j = 0; j < 100; j++){
+		for(j = 0; j < 1; j++){
 		fseek(fp, 0, SEEK_SET);
 		for(i = 0; i < N; i++) {
 			//TODO
