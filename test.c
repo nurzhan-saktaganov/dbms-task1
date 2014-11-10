@@ -65,10 +65,16 @@ int main(int argc, char **argv) {
 	/*dbc.mem_size = 0;*/
 	dbc.db_size = 50 Mb;
 	dbc.chunk_size = 1 KiB;
-	dbc.mem_size = 1 Mb;
+	dbc.mem_size = 20 KiB;
 	
 	int inserted = 0;
 	int deleted = 0;
+	
+#ifdef WITH_AVL
+	printf("WITH AVL\n");
+#else
+	printf("WITHOUT AVL\n");
+#endif
 	
 	if((db = dbcreate("testdb.db", dbc))){
 		

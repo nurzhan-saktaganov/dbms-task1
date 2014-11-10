@@ -2,7 +2,7 @@
 #define SETTINGS_H
 
 #define WITH_CACHE
-//#define WITH_AVL
+#define WITH_AVL
 
 /*
 int success = 0;

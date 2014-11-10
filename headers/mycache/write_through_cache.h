@@ -16,6 +16,10 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 			address = address_in_cache(db, current);
 			memcpy(address, block, db->db_info.chunk_size);
 			//success++;
+			offset = block_offset_in_file(db, block_id);
+			lseek(db->db_info.fd, offset, 0);
+			write(db->db_info.fd, block, db->db_info.chunk_size);
+			
 			if(current == db->cache.first) {
 				return;
 			} else if (current == db->cache.last){
@@ -35,14 +39,16 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 		//search++;
 		current = current->next;
 	}
+	
+	offset = block_offset_in_file(db, block_id);
+	lseek(db->db_info.fd, offset, 0);
+	write(db->db_info.fd, block, db->db_info.chunk_size);
+	return;
 
 	if(db->cache.occuped_blocks == db->cache.total_blocks) {
 		/* no free space in cache, flush last */
-		offset = block_offset_in_file(db, db->cache.last->block_id);
 		address = address_in_cache(db, db->cache.last);
-		lseek(db->db_info.fd, offset, 0);
-		write(db->db_info.fd, address, db->db_info.chunk_size);
-		
+				
 		current = db->cache.last;
 		db->cache.last = db->cache.last->prev;
 		db->cache.last->next = NULL;
@@ -54,6 +60,9 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 		db->cache.first->block_id = block_id;
 		
 		memcpy(address, block, db->db_info.chunk_size);
+		offset = block_offset_in_file(db, block_id);
+		lseek(db->db_info.fd, offset, 0);
+		write(db->db_info.fd, block, db->db_info.chunk_size);
 	} else {
 		//TODO;
 		current = (cache_block *) malloc(sizeof(cache_block));
@@ -71,6 +80,10 @@ void write_through_cache(struct MY_DB *db, void *block, int block_id) {
 		
 		address = address_in_cache(db, db->cache.first);
 		memcpy(address, block, db->db_info.chunk_size);
+		/* write to disk */
+		offset = block_offset_in_file(db, block_id);
+		lseek(db->db_info.fd, offset, 0);
+		write(db->db_info.fd, block, db->db_info.chunk_size);
 		db->cache.occuped_blocks++;
 	}
 	//mismatch++;

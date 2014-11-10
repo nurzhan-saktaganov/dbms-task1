@@ -35,13 +35,11 @@ void read_through_cache(struct MY_DB *db, void *block, int block_id) {
 		//search++;
 		current = current->next;
 	}
-
+	
 	if(db->cache.occuped_blocks == db->cache.total_blocks) {
-		/* no free space in cache, flush last */
-		offset = block_offset_in_file(db, db->cache.last->block_id);
+		/* no free space in cache, 'flush' last */
 		address = address_in_cache(db, db->cache.last);
-		lseek(db->db_info.fd, offset, 0);
-		write(db->db_info.fd, address, db->db_info.chunk_size);
+		
 		current = db->cache.last;
 		db->cache.last = db->cache.last->prev;
 		db->cache.last->next = NULL;
