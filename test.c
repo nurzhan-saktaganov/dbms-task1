@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+//#define WITH_CACHE 1
+int update_count = 0;
 #include "libdb.c"
 
 
@@ -30,8 +32,10 @@ void print_total_block(struct DB *db_in, char *str)
 	return;
 }
 
+#include <limits.h>
+
 int main(int argc, char **argv) {
-#define N 20
+#define N 20000
 #define M 0
 #define KEY_LEN 19
 #define KiB *1024
@@ -49,6 +53,7 @@ int main(int argc, char **argv) {
 	
 	int count;
 	int c;
+	
 	fp = fopen("bigtest.out", "r");
 	putfile = fopen("putcheck.txt", "w+");
 	getfile = fopen("getcheck.txt", "w+");
@@ -59,8 +64,9 @@ int main(int argc, char **argv) {
 	data.size = KEY_LEN;
 	
 	/*dbc.mem_size = 0;*/
-	dbc.db_size = 4 Mb;
+	dbc.db_size = 30 Mb;
 	dbc.chunk_size = 1 KiB;
+	dbc.mem_size = 30 Mb;
 	
 	int inserted = 0;
 	int deleted = 0;
@@ -75,7 +81,7 @@ int main(int argc, char **argv) {
 
 		
 		inserted = 0;
-		for(j = 0; j < 4; j++){
+		for(j = 0; j < 100; j++){
 		fseek(fp, 0, SEEK_SET);
 		for(i = 0; i < N; i++) {
 			//TODO
@@ -92,7 +98,7 @@ int main(int argc, char **argv) {
 			memcpy(data.data, buff, KEY_LEN);
 			memcpy(key.data, buff, KEY_LEN);
 			if(put(db, &key, &data) != -1){
-		
+		/*
 				fwrite(key.data, 1, key.size, putfile);
 					
 				fwrite(" ", 1, 1, putfile);
@@ -100,14 +106,14 @@ int main(int argc, char **argv) {
 				fwrite(data.data, 1, data.size, putfile);
 				
 				fwrite("\n", 1, 1, putfile);
-		
+		*/
 				inserted++;
 			}
 		}
 	}
 		
 		printf("inserted %d elements of %d\n", inserted, N);
-		
+		printf("updates = %d\n", update_count);
 		//print_tree_depth(db, "After insert");
 		//print_free_block(db, "After insert");
 		fseek(fp, 0, SEEK_SET);

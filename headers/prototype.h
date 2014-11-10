@@ -57,16 +57,28 @@ int 		try_merge_with_right(struct MY_DB *db, void *node,
 										void *l_child, int l_child_pos);
 
 int 		delete_from_leaf(struct MY_DB *db, void *leaf, 
-												const struct DBT *key, int *delete_sign);
+									struct DBT *key, int *delete_sign);
 
 int 		get_prev_key(struct MY_DB *db, void *node, struct DBT *key,
-													struct DBT *value, int *delete_sign);
+									struct DBT *value, int *delete_sign);
 
 int 		delete_from_tree(struct MY_DB *db, void *node,
-												const struct DBT *key, int *delete_sign);
+									struct DBT *key, int *delete_sign);
 
 int 		del(struct DB *db_in, struct DBT *key);
 
 void 		printdb(struct DB *db_in, void *node);
+
+void*		address_in_cache(struct MY_DB *db, cache_block *c_b);
+
+void 		read_through_cache(struct MY_DB *db, void *block, int block_id);
+
+void 		write_through_cache(struct MY_DB *db, void *block, int block_id);
+
+void 		flush_cache(struct MY_DB *db);
+
+void 		free_cache(struct MY_DB *db);
+
+
 
 #endif

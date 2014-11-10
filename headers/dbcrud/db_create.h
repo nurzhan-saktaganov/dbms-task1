@@ -7,14 +7,13 @@
 #include <unistd.h>
 
 /* We can not create db, if db with same name already exists */
-struct DB *dbcreate(const char *file, struct DBC confg)
+struct DB *dbcreate(const char *file, struct DBC conf)
 {
 	struct MY_DB *res;
 	char buf;
 	db_header hdr;
 	int tmp1;
 	int tmp2;
-	struct DBC conf = confg;
 	char *root_block;
 	int *int_ptr;
 	/* limit for min chunk_size */
@@ -38,10 +37,11 @@ struct DB *dbcreate(const char *file, struct DBC confg)
 		write(res->db_info.fd, &buf, sizeof(buf));
 	}
 		
+	conf.mem_size = (conf.mem_size / conf.chunk_size) * conf.chunk_size;
 	/* prepare a db's header */
 	hdr.db_size = conf.db_size;
 	hdr.chunk_size = conf.chunk_size;
-	//hdr.mem_size = conf.mem_size;
+	hdr.mem_size = conf.mem_size;
 	/* bitmap - one bit for one chunk */
 	hdr.bitmap_size = conf.db_size / conf.chunk_size / 8;
 	/* tmp1 is size of all meta-info in bytes */
@@ -62,7 +62,7 @@ struct DB *dbcreate(const char *file, struct DBC confg)
 	
 	res->db_info.db_size = conf.db_size;
 	res->db_info.chunk_size = conf.chunk_size;
-	//res->db_info.mem_size = conf.mem_size;
+	res->db_info.mem_size = conf.mem_size;
 	
 	res->db_info.bitmap_size = hdr.bitmap_size;
 	res->db_info.bitmap_start_index = hdr.bitmap_start_index;
@@ -86,6 +86,13 @@ struct DB *dbcreate(const char *file, struct DBC confg)
 	/* sign of leaf, i.e. root node is leaf*/
 	*(char *)(int_ptr + 1 ) = (char) 1;
 	
+	/* init cache */
+	res->cache.total_blocks = conf.mem_size / conf.chunk_size;
+	res->cache.occuped_blocks = 0;
+	res->cache.first = NULL;
+	res->cache.last = NULL;
+	res->cache.cache_memory = malloc(conf.mem_size);
+		
 	/* write to file meta-info */
 	lseek(res->db_info.fd, 0, 0);
 	write(res->db_info.fd, &hdr, sizeof(hdr));

@@ -35,7 +35,14 @@ struct DB *dbopen (const char *file)
 	res->db_info.bitmap_start_index = hdr.bitmap_start_index;
 	res->db_info.free_block_count = hdr.free_block_count;
 	res->db_info.tree_depth = hdr.tree_depth;
-	/* */
+	
+	/*  init cache */
+	res->cache.total_blocks = hdr.mem_size / hdr.chunk_size;
+	res->cache.occuped_blocks = 0;
+	res->cache.first = NULL;
+	res->cache.last = NULL;
+	res->cache.cache_memory = malloc(hdr.mem_size);
+	
 	res->db_info.root_node = (void *) malloc(hdr.chunk_size);
 	read_block_from_file(res, res->db_info.root_node, hdr.root_id);
 	

@@ -5,7 +5,7 @@
 #include <string.h>
 
 /* returns non zero if we delete key and zero value if there is no such key*/
-int delete_from_leaf(struct MY_DB *db, void *leaf, const struct DBT *key, int *delete_sign)
+int delete_from_leaf(struct MY_DB *db, void *leaf, struct DBT *key, int *delete_sign)
 {
 	void *t_leaf;
 	int *key_count;

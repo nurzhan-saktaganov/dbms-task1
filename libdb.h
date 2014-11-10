@@ -22,8 +22,23 @@ struct DBC {
 	size_t chunk_size; // block size
 	/* Maximum memory size */
 	/* 16MB by default */
-	//   size_t mem_size; 
+    size_t mem_size; 
 };
+
+typedef struct _cache_block {
+	int block_id;
+	int pos_in_cache;
+	struct _cache_block *prev;
+	struct _cache_block *next;
+} cache_block;
+
+typedef struct _db_cache {
+	cache_block *first;
+	cache_block *last;
+	int total_blocks;
+	int occuped_blocks;
+	void *cache_memory;
+} db_cache;
 
 typedef struct {
 	size_t db_size;
@@ -75,6 +90,7 @@ struct MY_DB {
     int (*sync)(struct DB *db);
     /* Private API */
 	db_info_in_DB db_info;
+	db_cache cache;
     /* ... */
 }; /* Need for supporting multiple backends (HASH/BTREE) */
 

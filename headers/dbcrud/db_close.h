@@ -28,6 +28,9 @@ int db_close(struct DB *db_in){
 	/* write root block to file*/
 	write_block_to_file(db, db->db_info.root_node, db->db_info.root_id);
 	
+	flush_cache(db);
+	free_cache(db);
+	
 	free(db->db_info.root_node);
 	free(db->db_info.bitmap);
 	free((void *)db);

@@ -17,6 +17,9 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 	int *leaf_values_size;
 	int *m_leaf_values_size;
 	/* */
+	int *leaf_block_ids;
+	int *m_leaf_block_ids;
+	/* */
 	void *leaf_keys;
 	void *m_leaf_keys;
 	/* */
@@ -30,10 +33,10 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 	leaf_key_count = (int *)leaf;
 	/* key number and sign of leaf */
 	leaf_keys_size = (int *)(leaf + sizeof(int) + sizeof(char));
-	/* */
 	leaf_values_size = leaf_keys_size + *leaf_key_count;
+	leaf_block_ids = leaf_values_size + *leaf_key_count;
 	/* setting leaf_keys and m_leaf_keys pointers */
-	leaf_keys = leaf_values_size + 2 * *leaf_key_count + 1;
+	leaf_keys = leaf_block_ids + *leaf_key_count + 1;
 	
 	/* setting leaf_values and m_leaf_values pointers */
 	leaf_values = leaf_keys;
@@ -63,10 +66,10 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 	
 	*(char *)(m_leaf + sizeof(int)) = *(char *)(leaf + sizeof(int));
 	m_leaf_keys_size = (int *)(m_leaf + sizeof(int) + sizeof(char));
-	/* */
 	m_leaf_values_size = m_leaf_keys_size + *m_leaf_key_count;	
+	m_leaf_block_ids = m_leaf_values_size + *m_leaf_key_count;
 	/* setting leaf_keys and m_leaf_keys pointers */
-	m_leaf_keys = m_leaf_values_size + 2 * *m_leaf_key_count + 1;
+	m_leaf_keys = m_leaf_block_ids + *m_leaf_key_count + 1;
 	
 	/* setting leaf_values and m_leaf_values pointers */
 	m_leaf_values = m_leaf_keys;
@@ -103,10 +106,12 @@ void add_to_leaf(struct MY_DB *db, void *leaf, struct DBT *key,
 	j = 1;
 	
 	if(update) {
+		memcpy(m_leaf_block_ids, leaf_block_ids, (*leaf_key_count + 1) * sizeof(int));
 		leaf_keys += leaf_keys_size[i];
 		leaf_values += leaf_values_size[i];
 		j = 0;
-		i++;		
+		i++;
+		update_count++;	
 	}
 	
 	while(i < *leaf_key_count)
@@ -148,6 +153,10 @@ int get_child_block_id_to_insert(struct MY_DB *db, void *node, struct DBT *key)
 		i++;
 	}
 	
+	if( i < key_count && cmpkeys(key->data, keys, key->size, keys_size[i]) == 0)
+		return -1;
+	
+	
 	child_block_id = blocks_id[i];
 	return child_block_id;
 }
@@ -172,11 +181,15 @@ int b_tree_insert(struct MY_DB *db, void *node, struct DBT *key,
 		add_to_leaf(db, node, key, data, modified_me);
 		i_am_modified = 1;
 	} else {
-		child_block = malloc(db->db_info.chunk_size);
 		child_block_id = get_child_block_id_to_insert(db, node, key);
-		read_block_from_file(db, child_block, child_block_id);
-		i_am_modified = b_tree_insert(db, child_block, key, data, modified_me, child_block_id);
-		free(child_block);
+		if(child_block_id == -1) {
+			add_to_leaf(db, node, key, data, modified_me);
+		} else {	
+			child_block = malloc(db->db_info.chunk_size);
+			read_block_from_file(db, child_block, child_block_id);
+			i_am_modified = b_tree_insert(db, child_block, key, data, modified_me, child_block_id);
+			free(child_block);
+		}
 	}
 	
 	if(! i_am_modified){

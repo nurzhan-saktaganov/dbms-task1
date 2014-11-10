@@ -5,7 +5,7 @@
 #include <string.h>
 
 /* returns non zero if we delete key and zero value if there is no such key*/
-int delete_from_tree(struct MY_DB *db, void *node, const struct DBT *key, int *delete_sign)
+int delete_from_tree(struct MY_DB *db, void *node, struct DBT *key, int *delete_sign)
 {
 	/* node key count */
 	int *key_count;
