@@ -22,7 +22,9 @@ struct DBC {
 	size_t chunk_size; // block size
 	/* Maximum memory size */
 	/* 16MB by default */
-    size_t mem_size; 
+#ifdef WITH_CACHE
+    size_t mem_size;
+#endif
 };
 
 typedef struct _cache_block {

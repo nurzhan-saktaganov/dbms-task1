@@ -66,7 +66,9 @@ int main(int argc, char **argv) {
 	/*dbc.mem_size = 0;*/
 	dbc.db_size = 1.7 Mb;
 	dbc.chunk_size = 1 KiB;
+#ifdef WITH_CACHE
 	dbc.mem_size = 85 KiB;
+#endif
 	
 	int inserted = 0;
 	int deleted = 0;

@@ -1,7 +1,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define WITH_CACHE
+//#define WITH_CACHE
 #define WITH_AVL
 
 /*

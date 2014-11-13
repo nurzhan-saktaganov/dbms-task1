@@ -36,12 +36,15 @@ struct DB *dbcreate(const char *file, struct DBC conf)
 		lseek(res->db_info.fd, conf.db_size - 1, 0);
 		write(res->db_info.fd, &buf, sizeof(buf));
 	}
-		
+#ifdef WITH_CACHE	
 	conf.mem_size = (conf.mem_size / conf.chunk_size) * conf.chunk_size;
+#endif
 	/* prepare a db's header */
 	hdr.db_size = conf.db_size;
 	hdr.chunk_size = conf.chunk_size;
+#ifdef WITH_CACHE
 	hdr.mem_size = conf.mem_size;
+#endif
 	/* bitmap - one bit for one chunk */
 	hdr.bitmap_size = conf.db_size / conf.chunk_size / 8;
 	/* tmp1 is size of all meta-info in bytes */
@@ -62,7 +65,9 @@ struct DB *dbcreate(const char *file, struct DBC conf)
 	
 	res->db_info.db_size = conf.db_size;
 	res->db_info.chunk_size = conf.chunk_size;
+#ifdef WITH_CACHE
 	res->db_info.mem_size = conf.mem_size;
+#endif
 	
 	res->db_info.bitmap_size = hdr.bitmap_size;
 	res->db_info.bitmap_start_index = hdr.bitmap_start_index;
