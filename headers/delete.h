@@ -32,7 +32,8 @@ int del(struct DB *db_in, struct DBT *key)
 	
 	if(!delete_sign){
 		free(t_node);
-		return -1;
+		/*return -1;*/
+		return 0;
 	}
 		
 	if(!modified) {
