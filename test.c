@@ -76,8 +76,11 @@ int main(int argc, char **argv) {
 #ifdef WITH_CACHE	
 #ifdef WITH_AVL
 	printf("WITH AVL\n");
+#endif
+#ifdef WITH_UTHASH
+	printf("WITH UTHASH\n");
 #else
-	printf("WITHOUT AVL\n");
+	printf("WITH NOTHING\n");
 #endif
 #else
 	printf("NO CACHE\n");

@@ -8,6 +8,12 @@
 #include "mycache-avl/avl_tree.h"
 #include "mycache-avl/read_through_cache.h"
 #include "mycache-avl/write_through_cache.h"
+#endif
+#ifdef WITH_UTHASH
+#include "mycache-uthash/datatype.h"
+#include "mycache-uthash/uthash.h"
+#include "mycache-uthash/read_through_cache.h"
+#include "mycache-uthash/write_through_cache.h"
 #else
 #include "mycache/read_through_cache.h"
 #include "mycache/write_through_cache.h"
