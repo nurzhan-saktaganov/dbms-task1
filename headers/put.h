@@ -183,6 +183,7 @@ int b_tree_insert(struct MY_DB *db, void *node, struct DBT *key,
 		child_block_id = get_child_block_id_to_insert(db, node, key);
 		if(child_block_id == -1) {
 			add_to_leaf(db, node, key, data, modified_me);
+			i_am_modified = 1;
 		} else {	
 			child_block = malloc(db->db_info.chunk_size);
 			read_block_from_file(db, child_block, child_block_id);
